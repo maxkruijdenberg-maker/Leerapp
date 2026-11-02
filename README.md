@@ -42,7 +42,7 @@ Dit maakt `dist/win-unpacked` en `dist/Makelaar-Academie-Setup-0.1.0.exe`. Distr
 - Proeftoetsen, afsluitende toetsen, overzichtsfilms, voortgang en herhaalvragen.
 - Export, volledige back-up en herstel van lessen, media en voortgang.
 
-Video's worden extern gemaakt, niet door de app. De persoonlijke inhoudelijke briefing en het importformaat staan in `app/MAAK-EEN-LESPAKKET.md`. De genoemde personagenamen zijn voorlopige ideeën. Echte leerstof, AI-avatarvideo's en gecontroleerde examenvragen ontbreken nog: daarvoor zijn het examen-pdf en de boekfoto's nodig.
+Video's worden extern gemaakt, niet door de app. Een algemene inhoudelijke briefing en het importformaat staan in `app/MAAK-EEN-LESPAKKET.md`. Echte leerstof, AI-avatarvideo's en gecontroleerde examenvragen ontbreken nog: daarvoor zijn het examen-pdf en de boekfoto's nodig.
 
 ## Bestanden
 
@@ -58,3 +58,7 @@ Video's worden extern gemaakt, niet door de app. De persoonlijke inhoudelijke br
 ## Eerstvolgende werk
 
 Controleer de app op Windows 11, vooral media/PDF-weergave, hulpfragmenten, snelkoppelingen, installer en verwijderen. Werk de interface verder af op basis van gebruik. Behoud het offline karakter en de bestaande lespakketcompatibiliteit. Voeg pas echte examengerichte lessen toe na ontvangst van de bronstukken.
+
+## Privacy
+
+Deze openbare repository bevat een algemene briefing. Persoonlijke leerstijl, politieke voorkeuren en letterlijke gesprekscitaten zijn niet opgenomen. Bewaar persoonlijke aanpassingen buiten Git.

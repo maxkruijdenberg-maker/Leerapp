@@ -1,0 +1,18 @@
+{
+  "format": "makelaar-lespakket",
+  "schemaVersion": 1,
+  "id": "mijn-bouwstijlen",
+  "moduleId": "bt1",
+  "moduleTitle": "Bouwkunde BT1",
+  "title": "Bouwstijlen",
+  "topics": [
+    {
+      "id": "bouwstijlen-intro",
+      "title": "Bouwstijlen: introductie",
+      "summary": "# Mijn samenvatting\n\nVervang deze tekst door je eigen samenvatting.",
+      "questions": [],
+      "examQuestions": []
+    }
+  ],
+  "finalQuestions": []
+}

@@ -1,0 +1,74 @@
+{
+  "format": "makelaar-lespakket",
+  "schemaVersion": 1,
+  "id": "start-demo",
+  "moduleId": "bt1",
+  "moduleTitle": "Bouwkunde BT1",
+  "title": "Start hier · demonstratie",
+  "examMinutes": 0,
+  "topics": [
+    {
+      "id": "welkom",
+      "title": "Zo werkt jouw leerapp",
+      "summary": "# Welkom in je eigen academie\n\nHier bouw je jouw opleiding onderwerp voor onderwerp op. Deze les demonstreert de app; er staat nog geen officiële BT1- of BT2-examenstof in.\n\n## Zo werkt het\n\n- Upload een eigen samenvatting als PDF, TXT of Markdown.\n- Voeg jouw AI-video toe als MP4 of WebM.\n- Importeer vragen en tijdcodes met een compleet lespakket.\n- Gebruik Help me even om precies het passende videostukje te bekijken.\n- Maak een proeftoets en bekijk je resultaat achteraf.\n\n## Jouw presentator\n\nEen makelaar in modern pak op een historische bouwplaats. Informatief, grappig en met achtergrondverhalen en ezelsbruggetjes. Je eigen ideeën staan in de briefing bij Mijn leeromgeving.\n\n## Probeer het\n\nDe demonstratievideo bevat alleen de twee getekende vormen. Er is geen AI-personage of stem in deze voorbeeldvideo. Probeer de beeldvraag bij Oefenen en test de knop voor het hulpfragment.",
+      "video": "assets/demo.mp4",
+      "questions": [
+        {
+          "id": "oefen-vorm",
+          "type": "choice",
+          "prompt": "Welke tekening heeft bovenaan een ronde boog?",
+          "image": "assets/vormen.png",
+          "options": [
+            "A",
+            "B"
+          ],
+          "answer": 0,
+          "explanation": "Bij A is de bovenkant rond. Bij B eindigt de bovenkant in een punt. Dit is een demonstratievraag, geen officiële examenvraag.",
+          "hint": "Bekijk de bovenkant van de twee vormen.",
+          "clip": {
+            "start": 2,
+            "end": 8
+          },
+          "source": "Schematische app-demonstratie; geen LOI- of examenbron."
+        },
+        {
+          "id": "oefen-open",
+          "type": "open",
+          "prompt": "Hoe wil jij de stof het liefst uitgelegd krijgen? Noem twee dingen.",
+          "answer": "Bijvoorbeeld: concrete woningen, historische achtergrond, humor, beeld en ezelsbruggetjes. Dit is een persoonlijke oefenvraag.",
+          "explanation": "Gebruik jouw antwoord als input voor de videobriefing."
+        }
+      ],
+      "examQuestions": [
+        {
+          "id": "toets-vorm",
+          "type": "choice",
+          "prompt": "Welke tekening heeft bovenaan een ronde boog?",
+          "image": "assets/vormen.png",
+          "options": [
+            "A",
+            "B"
+          ],
+          "answer": 0,
+          "explanation": "Bij A is de bovenkant rond. Bij B eindigt de bovenkant in een punt. Dit is een demonstratievraag, geen officiële examenvraag.",
+          "hint": "Bekijk de bovenkant van de twee vormen.",
+          "clip": {
+            "start": 2,
+            "end": 8
+          },
+          "source": "Schematische app-demonstratie; geen LOI- of examenbron."
+        },
+        {
+          "id": "toets-aantal",
+          "type": "number",
+          "prompt": "Hoeveel vormen staan er op de afbeelding? Vul een getal in.",
+          "image": "assets/vormen.png",
+          "answer": 2,
+          "tolerance": 0,
+          "explanation": "Er staan twee vormen: A en B. Dit test alleen de werking van rekenvragen."
+        }
+      ]
+    }
+  ],
+  "finalQuestions": []
+}
