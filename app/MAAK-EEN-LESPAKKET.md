@@ -67,3 +67,30 @@ examMinutes is een niet-negatief getal. 0 is zonder tijdslimiet. Geldt voor de o
 Media: MP4 (H.264/AAC), WebM, PNG, JPG, WebP, GIF, PDF. Geen HTML, JavaScript of externe verwijzingen in pakketten. Markdown is beperkt tot kopjes, alinea's, lijsten en vetgedrukte tekst. Plaats geen video-verwijzing in JSON totdat het bestand beschikbaar is; ik kan de video later via de app uploaden. Samenvatting, vragen en afbeeldingen kunnen dus al eerder worden geïmporteerd.
 
 Controleer vóór aflevering: JSON syntaxis, juiste antwoorden, bronverwijzingen, unieke IDs, alle mediabestanden aanwezig, clip-eindtijd na begintijd en binnen videoduur. Lever een korte lijst met nog ontbrekende broninformatie mee buiten het importbestand.
+
+## Aanvullingen vanaf appversie 0.2
+
+Het bestand blijft `schemaVersion: 1`. Bestaande pakketten blijven bruikbaar. Een lege module mag `topics: []` hebben. De gebruiker kiest de zichtbare `moduleTitle` en onderwerptitels zelf; IDs zijn technische, stabiele verwijzingen.
+
+Aan een onderwerp kun je deze optionele velden toevoegen:
+
+```json
+{
+  "assignmentText": "# Opdracht\n\nBeschrijf hier wat de leerling moet doen.",
+  "videos": [
+    {"id": "film-1", "title": "De eerste uitleg", "file": "assets/uitleg.mp4"}
+  ],
+  "assignments": [
+    {"id": "opdracht-1", "title": "Werkblad", "file": "assets/werkblad.pdf"}
+  ],
+  "examFiles": [
+    {"id": "toetsdocument-1", "title": "Oefentoets", "file": "assets/oefentoets.pdf"}
+  ]
+}
+```
+
+Dit is een veldenvoorbeeld: neem alleen verwijzingen op naar werkelijk meegeleverde bestanden. Bijlage-IDs zijn uniek binnen de betreffende lijst. Video's gebruiken MP4/WebM; opdracht- en toetsdocumenten PDF, TXT of Markdown. Documenten worden als documenten getoond, niet automatisch beoordeeld. Interactieve vragen blijven in `questions` en `examQuestions` staan.
+
+Het oude veld `video` blijft de primaire video voor bestaande hulpfragmenten. Nieuwe hulpfragmenten kunnen met `clip.videoId` naar het ID in `videos` verwijzen. Verwijderen van een gebruikte hulpvideo wordt geblokkeerd zolang vragen ernaar verwijzen.
+
+Een los vragenbestand kan een JSON-array zijn, of een object met `questions`. Bij een oefentoets mag het object ook `examQuestions` gebruiken. Het vraagformaat is hetzelfde als hierboven. Verwijs alleen naar media die al in het onderwerp/pakket aanwezig zijn, of importeer een compleet lespakket met media. Gebruik nieuwe vraag-IDs wanneer betekenis of antwoorden veranderen, zodat oude resultaten niet met een andere vraag worden verward.

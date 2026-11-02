@@ -1,0 +1,58 @@
+name: Windows release
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  windows-desktop:
+    name: Windows desktop check
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+      - run: git config --global url.https://github.com/.insteadOf ssh://git@github.com/
+      - run: npm ci
+      - run: npm test
+      - run: npm run test:ui
+      - run: npx --no install-electron
+      - run: npm run test:desktop
+  bundle:
+    name: Build and upload complete Windows bundle
+    needs: windows-desktop
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+      - name: Install and validate
+        run: |
+          set -euo pipefail
+          git config --global url.https://github.com/.insteadOf ssh://git@github.com/
+          npm ci
+          npm test
+          npm run test:ui
+      - name: Build bundle
+        run: npm run bundle:win
+      - name: Upload to existing draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          version=$(node -p 'require("./package.json").version')
+          tag="v$version"
+          if [ "$GITHUB_REF_TYPE" = tag ]; then test "$GITHUB_REF_NAME" = "$tag"; fi
+          test "$(gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json isDraft --jq '.isDraft')" = true
+          gh release upload "$tag" "dist/Makelaar-Academie-$version-Windows-x64.zip" "dist/Makelaar-Academie-$version-Windows-x64.sha256" --repo "$GITHUB_REPOSITORY"

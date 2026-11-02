@@ -1,0 +1,21 @@
+{
+  "questions": [
+    {
+      "id": "eigen-oefening-01",
+      "type": "choice",
+      "prompt": "Vervang dit door jouw vraag.",
+      "options": ["Het juiste antwoord", "Een ander antwoord"],
+      "answer": 0,
+      "explanation": "Vervang dit door uitleg op basis van je eigen bron."
+    }
+  ],
+  "examQuestions": [
+    {
+      "id": "eigen-toets-01",
+      "type": "open",
+      "prompt": "Leg dit onderwerp in je eigen woorden uit.",
+      "answer": "Vervang dit door het modelantwoord uit jouw lesstof.",
+      "explanation": "Controleer je antwoord aan de hand van de bron."
+    }
+  ]
+}

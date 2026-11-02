@@ -1,11 +1,12 @@
 const fs=require('node:fs'),path=require('node:path'),{spawnSync}=require('node:child_process');
 const {getBinFromUrl}=require('app-builder-lib/out/binDownload');
+const {version}=require('../package.json');
 (async()=>{const project=path.resolve(__dirname,'..'),dist=path.join(project,'dist'),payload=path.join(dist,'win-unpacked');
 const nsis=await getBinFromUrl('nsis','3.0.4.1','VKMiizYdmNdJOWpRGz4trl4lD++BvYP2irAXpMilheUP0pc93iKlWAoP843Vlraj8YG19CVn0j+dCo/hURz9+Q==');
 for(const f of fs.readdirSync(payload)){if(f==='electron.exe'||f.startsWith('.Makelaar Academie.exe.')||f.startsWith('.electron.exe.'))fs.rmSync(path.join(payload,f),{force:true});}
 const files=fs.readdirSync(payload,{recursive:true}).filter(f=>fs.statSync(path.join(payload,f)).isFile());
 const dirs=fs.readdirSync(payload,{recursive:true}).filter(f=>fs.statSync(path.join(payload,f)).isDirectory()).sort((a,b)=>b.length-a.length);
-const installer=path.join(dist,'Makelaar-Academie-Setup-0.1.0.exe');
+const installer=path.join(dist,'Makelaar-Academie-Setup-'+version+'.exe');
 const script=`Unicode true
 !include "MUI2.nsh"
 !include "x64.nsh"
@@ -46,7 +47,7 @@ Section "Installeren"
  CreateShortcut "$SMPROGRAMS\\Makelaar Academie\\Makelaar Academie.lnk" "$INSTDIR\\Makelaar Academie.exe" "" "$INSTDIR\\Academie.ico"
  WriteRegStr HKCU "Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\MakelaarAcademie" "DisplayName" "Makelaar Academie"
  WriteRegStr HKCU "Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\MakelaarAcademie" "UninstallString" '$\\"$INSTDIR\\Verwijderen.exe$\\"'
- WriteRegStr HKCU "Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\MakelaarAcademie" "DisplayVersion" "0.1.0"
+ WriteRegStr HKCU "Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\MakelaarAcademie" "DisplayVersion" "${version}"
  WriteRegStr HKCU "Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\MakelaarAcademie" "Publisher" "Makelaar Academie"
  WriteRegStr HKCU "Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\MakelaarAcademie" "DisplayIcon" "$INSTDIR\\Academie.ico"
 SectionEnd

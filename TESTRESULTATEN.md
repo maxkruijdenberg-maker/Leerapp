@@ -1,15 +1,20 @@
-# Validatie van versie 0.1
+# Controles van versie 0.2
 
-Geslaagd:
-- 8 geautomatiseerde tests voor pakketimport, media, ongeldige paden en vraagantwoorden, ongeldige tijdcodes, antwoordbeoordeling, behoud bij mislukte import, archiefimport, en desktopdiensten met gesimuleerde Electron-dialogen.
-- Desktopdiensten getest: onderwerp aanmaken, samenvatting/video toevoegen, voortgang bewaren, pakket exporteren, volledige back-up, terugzetten en verwijderen/importeren.
-- DOM-interactietest: navigatie, feedback op fout antwoord, open vraag zelf beoordelen, herhaalvragen, toets zonder hints, 100%-score, toetsgeschiedenis, algemene lespakketbriefing, nieuw onderwerp en lege toets.
-- JavaScript syntaxis gecontroleerd.
-- Verpakte appbestanden byte voor byte vergeleken met de geteste bronbestanden.
+## In deze ontwikkelomgeving gecontroleerd
 
-Beperkingen van deze validatie:
-- De installer is voor Windows x64 gebouwd vanuit een andere omgeving. Niet uitgevoerd op Windows 11.
-- De desktopruntime kon hier niet worden gestart; de DOM-test is geen volledige browser- of visuele test.
-- Echte videoweergave, codeccompatibiliteit, PDF-weergave en het springen naar fragmenten moeten nog op Windows worden gecontroleerd.
-- De installer is niet digitaal ondertekend. Installatie, snelkoppelingen en de verwijderfunctie zijn nog niet op Windows beproefd.
-- Demonstratie-inhoud is geen echte examenstof. Er zijn nog geen AI-avatarvideo's of gecontroleerde BT1/BT2-proeftoetsen gemaakt.
+- 19 geslaagde core- en desktopintegratietests: bestaande lespakketten, importvalidatie, beoordeling, vrije modules, hernoemen/verwijderen, lege modules, meerdere video's en documenten, JSON-vragen, foutafhandeling, oude voortgang en volledige back-ups.
+- Geslaagde DOM-interactietest: module en onderwerp maken/hernamen, samenvatting en opdrachttekst schrijven, meerkeuze-/reken-/open vragen maken en bewerken, JSON-/documentimport, meerdere video's, onafhankelijke kijkpositie, oefenen/toetsen en vensterknoppen.
+- De echte Electron-runtime gestart op een virtueel Linux-scherm. Schermvullende start, eigen vensterknoppen, module/onderwerp maken, tekst en vragen opslaan, navigatie, schoon afsluiten en behoud na herstart zijn gecontroleerd met een tijdelijk profiel.
+- Startpagina, modulepagina, onderwerppagina en vrageneditor visueel op Linux bekeken. Geen horizontale overflow op de gecontroleerde 1364-pixelviewport; de eigen titelbalk gebruikt de donkere appkleur.
+
+## Bij het uitbrengen
+
+De releaseworkflow voert de tests en echte desktopcontrole ook op een Windows-runner uit. De distributie wordt op Linux gebouwd; het verpakte app-archief wordt byte voor byte vergeleken met de broncode. De complete ZIP en SHA256-controlehash worden gevalideerd voordat upload naar de conceptrelease plaatsvindt. Raadpleeg de workflowrun bij de betreffende releasetag voor het actuele resultaat.
+
+## Apart te controleren
+
+- Installatie, bijwerken, snelkoppelingen en verwijderen op een echte Windows-pc.
+- Video-/codeccompatibiliteit, PDF-weergave en hulpfragmenten met echt lesmateriaal.
+- Gebruiksgemak op de eigen Windows-pc, schermresolutie en schaalinstelling.
+
+De installer is niet digitaal ondertekend. De demonstratieles is geen officiële examenstof. Er zijn geen AI-avatarvideo's of gecontroleerde BT1/BT2-examenpakketten gemaakt zonder bronstukken.
