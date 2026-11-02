@@ -384,21 +384,23 @@ const wait = () => new Promise((resolve) => setTimeout(resolve, 15));
   await click("[data-action=attach][data-kind=video]");
   assert.equal(d.querySelectorAll("[data-action=selectVideo]").length, 2);
   const firstVideo = d.querySelector("#lesson-video");
-  firstVideo.currentTime = 3.5;
   Object.defineProperty(firstVideo, "duration", {
     value: 20,
     configurable: true,
   });
+  firstVideo.dispatchEvent(new w.Event("loadedmetadata"));
+  firstVideo.currentTime = 3.5;
   firstVideo.dispatchEvent(new w.Event("timeupdate"));
   await wait();
   await click("[data-action=selectVideo][data-id=video-two]");
   const secondVideo = d.querySelector("#lesson-video");
   assert.match(secondVideo.src, /two\.webm$/);
-  secondVideo.currentTime = 8;
   Object.defineProperty(secondVideo, "duration", {
     value: 30,
     configurable: true,
   });
+  secondVideo.dispatchEvent(new w.Event("loadedmetadata"));
+  secondVideo.currentTime = 8;
   secondVideo.dispatchEvent(new w.Event("timeupdate"));
   await wait();
   const saved = state.progress.topics[custom.id + "/" + ownTopic.id];
@@ -409,6 +411,53 @@ const wait = () => new Promise((resolve) => setTimeout(resolve, 15));
     saved.videos["video-one"].videos,
     undefined,
     "No recursive video-state nesting",
+  );
+
+  // A freshly mounted or failed player must not overwrite a watched video's seek.
+  const progressKey = custom.id + "/" + ownTopic.id;
+  await click("[data-action=selectVideo][data-id=video-one]");
+  const unopenedVideo = d.querySelector("#lesson-video");
+  assert.equal(unopenedVideo.currentTime, 0);
+  // A finite duration by itself does not establish that the saved seek was applied.
+  Object.defineProperty(unopenedVideo, "duration", {
+    value: 20,
+    configurable: true,
+  });
+  unopenedVideo.dispatchEvent(new w.Event("timeupdate"));
+  unopenedVideo.dispatchEvent(new w.Event("pause"));
+  await click("[data-tab=summary]");
+  assert.equal(state.progress.topics[progressKey].position, 3.5);
+  assert.equal(
+    state.progress.topics[progressKey].videos["video-one"].position,
+    3.5,
+  );
+  await click("[data-tab=video]");
+  d.querySelector("#lesson-video").dispatchEvent(new w.Event("error"));
+  await click("[data-tab=summary]");
+  assert.equal(state.progress.topics[progressKey].position, 3.5);
+  assert.equal(
+    state.progress.topics[progressKey].videos["video-two"].position,
+    8,
+  );
+  await click("[data-tab=video]");
+  const resumedVideo = d.querySelector("#lesson-video");
+  Object.defineProperty(resumedVideo, "duration", {
+    value: 20,
+    configurable: true,
+  });
+  resumedVideo.dispatchEvent(new w.Event("loadedmetadata"));
+  assert.equal(
+    resumedVideo.currentTime,
+    3.5,
+    "Saved seek restored before progress can change",
+  );
+  resumedVideo.currentTime = 4.75;
+  resumedVideo.dispatchEvent(new w.Event("timeupdate"));
+  await wait();
+  assert.equal(state.progress.topics[progressKey].position, 4.75);
+  assert.equal(
+    state.progress.topics[progressKey].videos["video-one"].position,
+    4.75,
   );
 
   // Interactive examination import, manual editing and local document access.

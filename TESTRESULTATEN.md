@@ -2,7 +2,7 @@
 
 ## In deze ontwikkelomgeving gecontroleerd
 
-- 19 geslaagde core- en desktopintegratietests: bestaande lespakketten, importvalidatie, beoordeling, vrije modules, hernoemen/verwijderen, lege modules, meerdere video's en documenten, JSON-vragen, foutafhandeling, oude voortgang en volledige back-ups.
+- 20 geslaagde core- en desktopintegratietests: bestaande lespakketten, importvalidatie, beoordeling, vrije modules, hernoemen/verwijderen, lege modules, meerdere video's en documenten, JSON-vragen, foutafhandeling, oude voortgang en volledige back-ups.
 - Geslaagde DOM-interactietest: module en onderwerp maken/hernamen, samenvatting en opdrachttekst schrijven, meerkeuze-/reken-/open vragen maken en bewerken, JSON-/documentimport, meerdere video's, onafhankelijke kijkpositie, oefenen/toetsen en vensterknoppen.
 - De echte Electron-runtime gestart op een virtueel Linux-scherm. Schermvullende start, eigen vensterknoppen, module/onderwerp maken, tekst en vragen opslaan, navigatie, schoon afsluiten en behoud na herstart zijn gecontroleerd met een tijdelijk profiel.
 - Startpagina, modulepagina, onderwerppagina en vrageneditor visueel op Linux bekeken. Geen horizontale overflow op de gecontroleerde 1364-pixelviewport; de eigen titelbalk gebruikt de donkere appkleur.

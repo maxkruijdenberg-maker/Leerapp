@@ -362,10 +362,11 @@ app.whenReady().then(() => {
     const item = items.find(attachment => attachment.id === identifier(data.id, 'Ongeldige bijlage'));
     assert(item, 'Bijlage ontbreekt');
     if (data.kind === 'video') {
+      const primaryFile = topic.video ?? topicVideos(topic)[0]?.file;
       const questions = [...(topic.questions ?? []), ...(topic.examQuestions ?? []),
         ...(pkg.finalQuestions ?? []).filter(question => question.topicId === topic.id || (!question.topicId && topic === pkg.topics[0]))];
       assert(!questions.some(question => question.clip && (question.clip.videoId === item.id ||
-        (!question.clip.videoId && item.file === topic.video))),
+        (!question.clip.videoId && item.file === primaryFile))),
       'Deze video wordt gebruikt door hulpfragmenten. Pas die vragen eerst aan.');
     }
     topic[field] = items.filter(attachment => attachment.id !== item.id);

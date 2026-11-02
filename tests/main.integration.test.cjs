@@ -322,3 +322,42 @@ test('Malformed saved progress is reported without overwriting the existing data
     assert.equal(fs.readFileSync(path.join(h.root, 'progress.json'), 'utf8'), contents);
   }
 });
+
+test('Videos-only imports protect the first video used by implicit clips while unrelated videos can be removed', async t => {
+  const h = await desktop(t);
+  const clip = { start: 0, end: 2 };
+  const pkg = {
+    format: 'makelaar-lespakket', schemaVersion: 1, id: 'videos-only', moduleId: 'videos-only',
+    moduleTitle: 'Geïmporteerde videomodule', title: 'Videolessen', finalQuestions: [],
+    topics: [{ id: 'onderwerp', title: 'Onderwerp met twee video’s', summary: '',
+      videos: [
+        { id: 'eerste', title: 'Eerste video', file: 'assets/eerste.mp4' },
+        { id: 'tweede', title: 'Tweede video', file: 'assets/tweede.mp4' }
+      ], questions: [{ ...choice('impliciet-fragment'), clip }], examQuestions: [] }]
+  };
+  const archive = new AdmZip();
+  archive.addFile('lespakket.json', Buffer.from(JSON.stringify(pkg)));
+  archive.addLocalFile(demoVideo, 'assets', 'eerste.mp4');
+  archive.addLocalFile(demoVideo, 'assets', 'tweede.mp4');
+  const source = path.join(h.root, 'videos-only.lespakket');
+  archive.writeZip(source);
+  h.open(source);
+  await h.invoke('import');
+  const target = { packageId: pkg.id, topicId: 'onderwerp', kind: 'video' };
+  const manifest = fs.readFileSync(h.manifest(pkg.id), 'utf8');
+  const primaryFile = path.join(h.root, 'packages', pkg.id, 'assets/eerste.mp4');
+  const primaryBytes = fs.readFileSync(primaryFile);
+  const rejected = await h.raw('removeAttachment', [{ ...target, id: 'eerste' }]);
+  assert.equal(rejected.ok, false);
+  assert.match(rejected.error, /hulpfragmenten/);
+  assert.equal(fs.readFileSync(h.manifest(pkg.id), 'utf8'), manifest);
+  assert.deepEqual(fs.readFileSync(primaryFile), primaryBytes);
+  const current = await h.invoke('removeAttachment', { ...target, id: 'tweede' });
+  const topic = current.packages.find(item => item.id === pkg.id).topics[0];
+  assert.equal(topic.videos.length, 1);
+  assert.equal(topic.videos[0].file, 'assets/eerste.mp4');
+  assert.equal(topic.video, undefined);
+  assert.deepEqual(topic.questions[0].clip, clip);
+  assert.deepEqual(fs.readFileSync(primaryFile), primaryBytes);
+  assert(!fs.existsSync(path.join(h.root, 'packages', pkg.id, 'assets/tweede.mp4')));
+});

@@ -314,6 +314,7 @@ function topicPage() {
 function wireVideo(p, t, video) {
   const element = document.querySelector("#lesson-video");
   let lastSave = 0;
+  let initialized = false;
   const primary = video.file === t.video;
   const videoProgress = () => {
     const state = tp(p, t);
@@ -329,15 +330,25 @@ function wireVideo(p, t, video) {
     );
   };
   element.addEventListener("loadedmetadata", () => {
+    initialized = false;
+    if (!Number.isFinite(element.duration) || element.duration <= 0) return;
     const position = videoProgress().position || 0;
-    if (position < element.duration) element.currentTime = position;
+    try {
+      // Do not save the new element's initial zero before restoring its seek.
+      element.currentTime = Math.min(Math.max(0, position), element.duration);
+      initialized = true;
+    } catch {
+      toast("De kijkpositie kon niet worden hersteld. Open de video opnieuw.");
+    }
   });
-  element.addEventListener("error", () =>
+  element.addEventListener("error", () => {
+    initialized = false;
     toast(
       "Deze video kan niet worden afgespeeld. Gebruik MP4 met H.264/AAC of WebM.",
-    ),
-  );
+    );
+  });
   const update = () => {
+    if (!initialized || element.error) return;
     const state = { ...tp(p, t) };
     const value = { ...videoProgress(), position: element.currentTime };
     if (Number.isFinite(element.duration)) value.duration = element.duration;
@@ -349,7 +360,7 @@ function wireVideo(p, t, video) {
   };
   element.savePosition = update;
   element.addEventListener("timeupdate", () => {
-    if (Date.now() - lastSave > 3000) {
+    if (initialized && Date.now() - lastSave > 3000) {
       lastSave = Date.now();
       update();
     }
