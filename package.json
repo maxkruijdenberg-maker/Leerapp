@@ -1,6 +1,6 @@
 {
   "name": "makelaar-academie",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Persoonlijke offline leerapp voor Makelaar Wonen",
   "author": "Makelaar Academie",
   "private": true,
@@ -33,7 +33,7 @@
     },
     "win": {
       "target": "nsis",
-      "signAndEditExecutable": false,
+      "signAndEditExecutable": true,
       "icon": "app/icon.ico"
     },
     "nsis": {

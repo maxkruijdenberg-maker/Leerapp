@@ -94,11 +94,13 @@ class DevTools {
 }
 
 async function launch(profile) {
-  const executable = require('electron');
+  const executable = process.env.SMOKE_EXECUTABLE
+    ? path.resolve(project, process.env.SMOKE_EXECUTABLE)
+    : require('electron');
   assert.equal(typeof executable, 'string', 'Run this script with Node.js, not Electron');
   const childEnvironment = { ...process.env };
   delete childEnvironment.ELECTRON_RUN_AS_NODE;
-  const child = spawn(executable, [project, '--user-data-dir=' + profile,
+  const child = spawn(executable, [...(process.env.SMOKE_EXECUTABLE ? [] : [project]), '--user-data-dir=' + profile,
     '--remote-debugging-port=0', '--remote-debugging-address=127.0.0.1'], {
     cwd: project, env: childEnvironment, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: false
   });

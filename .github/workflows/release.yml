@@ -26,7 +26,10 @@ jobs:
   bundle:
     name: Build and upload complete Windows bundle
     needs: windows-desktop
-    runs-on: ubuntu-24.04
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
     timeout-minutes: 15
     permissions:
       contents: write
@@ -46,6 +49,8 @@ jobs:
           npm run test:ui
       - name: Build bundle
         run: npm run bundle:win
+      - name: Check packaged Windows app
+        run: SMOKE_EXECUTABLE="dist/win-unpacked/Makelaar Academie.exe" npm run test:desktop
       - name: Upload to existing draft
         env:
           GH_TOKEN: ${{ github.token }}

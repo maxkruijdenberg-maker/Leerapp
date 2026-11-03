@@ -1,4 +1,4 @@
-# Controles van versie 0.2
+# Controles van versie 0.3
 
 ## In deze ontwikkelomgeving gecontroleerd
 
@@ -7,9 +7,12 @@
 - De echte Electron-runtime gestart op een virtueel Linux-scherm. Schermvullende start, eigen vensterknoppen, module/onderwerp maken, tekst en vragen opslaan, navigatie, schoon afsluiten en behoud na herstart zijn gecontroleerd met een tijdelijk profiel.
 - Startpagina, modulepagina, onderwerppagina en vrageneditor visueel op Linux bekeken. Geen horizontale overflow op de gecontroleerde 1364-pixelviewport; de eigen titelbalk gebruikt de donkere appkleur.
 
+- Bij het openen van een invoervenster blijven de gecontroleerde achtergrondpixels gelijk; de dialoogachtergrond is transparant.
+- Het bureaubladicoon bevat een ondoorzichtige groene achtergrond in alle opgenomen Windows-formaatgroottes, van 16 tot 256 pixels.
+
 ## Bij het uitbrengen
 
-De releaseworkflow voert de tests en echte desktopcontrole ook op een Windows-runner uit. De distributie wordt op Linux gebouwd; het verpakte app-archief wordt byte voor byte vergeleken met de broncode. De complete ZIP en SHA256-controlehash worden gevalideerd voordat upload naar de conceptrelease plaatsvindt. Raadpleeg de workflowrun bij de betreffende releasetag voor het actuele resultaat.
+De releaseworkflow voert de tests en echte desktopcontrole ook op een Windows-runner uit. De distributie wordt op Windows gebouwd, inclusief het ingesloten appicoon; het verpakte app-archief wordt byte voor byte vergeleken met de broncode. De complete ZIP en SHA256-controlehash worden gevalideerd voordat upload naar de conceptrelease plaatsvindt. Raadpleeg de workflowrun bij de betreffende releasetag voor het actuele resultaat.
 
 ## Apart te controleren
 

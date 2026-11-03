@@ -1,6 +1,6 @@
 # Makelaar Academie
 
-Offline Windows-leerapp, versie 0.2.0. Maak zelf modules met eigen namen, voeg onderwerpen toe en bouw per onderwerp je samenvatting, video's, opdrachten en oefentoets op. De interface gebruikt donkergroen, goud en klassieke typografie. De app start schermvullend, met eigen vensterknoppen.
+Offline Windows-leerapp, versie 0.3.0. Maak zelf modules met eigen namen, voeg onderwerpen toe en bouw per onderwerp je samenvatting, video's, opdrachten en oefentoets op. De interface gebruikt donkergroen, goud en klassieke typografie. De app start schermvullend, met eigen vensterknoppen. Invoervensters verduisteren de achtergrond niet; het bureaubladicoon gebruikt goud op herkenbaar donkergroen.
 
 ## Ontwikkelen
 
@@ -29,11 +29,11 @@ De installatie heeft toegang nodig tot npm en de Electron-downloads. In de behee
 npm run bundle:win
 ```
 
-Dit bouwt de Windows x64-app, de installer en `dist/Makelaar-Academie-0.2.0-Windows-x64.zip` met SHA256-controlebestand. In de ZIP staan de setup, de volledige map `app`, de handleiding en de broncode van de huidige Git-commit. Commit de geteste broncode voordat je een distributiebundel maakt.
+Voer deze distributiebouw uit op Windows. Dit bouwt de Windows x64-app, de installer en `dist/Makelaar-Academie-0.3.0-Windows-x64.zip` met SHA256-controlebestand. In de ZIP staan de setup, de volledige map `app`, de handleiding en de broncode van de huidige Git-commit. Commit de geteste broncode voordat je een distributiebundel maakt.
 
 De installer kopieert de map `app` die naast de setup staat: pak altijd de volledige ZIP uit. De setup is geen zelfstandige installatie-EXE. App en installer zijn niet digitaal ondertekend. Een update bewaart de persoonlijke gegevensmap; maak vooraf een back-up en sluit de vorige versie.
 
-De releaseworkflow controleert de echte appstart en opslag op een Windows-runner en bouwt de distributie op Linux. De workflow uploadt alleen naar een bestaande conceptrelease; publicatie volgt na controle van de bestanden. Installatie/verwijderen, echte video-/PDF-weergave en handmatige Windows-UX moeten afzonderlijk worden getest.
+De releaseworkflow controleert de echte appstart en opslag op een Windows-runner en bouwt de distributie op Windows, inclusief het icoon in het programmabestand. De workflow uploadt alleen naar een bestaande conceptrelease; publicatie volgt na controle van de bestanden. Installatie/verwijderen, echte video-/PDF-weergave en handmatige Windows-UX moeten afzonderlijk worden getest.
 
 ## Modules en onderwerpen
 

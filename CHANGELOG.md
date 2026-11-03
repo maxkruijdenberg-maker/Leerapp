@@ -1,5 +1,12 @@
 # Wijzigingen
 
+## 0.3.0
+
+- Vensters voor invoer en bewerken openen zonder de app op de achtergrond te verduisteren.
+- Goud bureaubladlogo op een duidelijk herkenbare donkergroene achtergrond.
+- Hetzelfde logo voor appvenster, taakbalk, snelkoppelingen en Windows-programmabestand.
+- Versiegebonden icoonbestanden voor vernieuwde snelkoppelingen bij het bijwerken.
+
 ## 0.2.0
 
 - Modules met eigen namen aanmaken, hernoemen en verwijderen.

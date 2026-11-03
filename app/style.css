@@ -1094,7 +1094,7 @@ dialog {
   max-height: 88vh;
 }
 dialog::backdrop {
-  background: #07100dcb;
+  background: transparent;
 }
 dialog h2 {
   font-size: 30px;

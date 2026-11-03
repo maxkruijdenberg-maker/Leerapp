@@ -40,22 +40,23 @@ Section "Installeren"
  SetOutPath "$INSTDIR"
  ${dirs.map(f=>'CreateDirectory "$INSTDIR\\'+f.replaceAll('/','\\')+'"').join('\n ')}
  ${files.map(f=>'ClearErrors\n CopyFiles /SILENT "$EXEDIR\\app\\'+f.replaceAll('/','\\')+'" "$INSTDIR\\'+f.replaceAll('/','\\')+'"\n IfErrors 0 +3\n MessageBox MB_OK "Kopiëren mislukt. Sluit de app, controleer de uitgepakte bestanden en probeer opnieuw."\n Abort').join('\n ')}
- File /oname=Academie.ico "${path.join(project,'app/icon.ico')}"
+ Delete "$INSTDIR\\Academie.ico"
+ File /oname=Academie-${version}.ico "${path.join(project,'app/icon.ico')}"
  WriteUninstaller "$INSTDIR\\Verwijderen.exe"
- CreateShortcut "$DESKTOP\\Makelaar Academie.lnk" "$INSTDIR\\Makelaar Academie.exe" "" "$INSTDIR\\Academie.ico"
+ CreateShortcut "$DESKTOP\\Makelaar Academie.lnk" "$INSTDIR\\Makelaar Academie.exe" "" "$INSTDIR\\Academie-${version}.ico"
  CreateDirectory "$SMPROGRAMS\\Makelaar Academie"
- CreateShortcut "$SMPROGRAMS\\Makelaar Academie\\Makelaar Academie.lnk" "$INSTDIR\\Makelaar Academie.exe" "" "$INSTDIR\\Academie.ico"
+ CreateShortcut "$SMPROGRAMS\\Makelaar Academie\\Makelaar Academie.lnk" "$INSTDIR\\Makelaar Academie.exe" "" "$INSTDIR\\Academie-${version}.ico"
  WriteRegStr HKCU "Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\MakelaarAcademie" "DisplayName" "Makelaar Academie"
  WriteRegStr HKCU "Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\MakelaarAcademie" "UninstallString" '$\\"$INSTDIR\\Verwijderen.exe$\\"'
  WriteRegStr HKCU "Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\MakelaarAcademie" "DisplayVersion" "${version}"
  WriteRegStr HKCU "Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\MakelaarAcademie" "Publisher" "Makelaar Academie"
- WriteRegStr HKCU "Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\MakelaarAcademie" "DisplayIcon" "$INSTDIR\\Academie.ico"
+ WriteRegStr HKCU "Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\MakelaarAcademie" "DisplayIcon" "$INSTDIR\\Academie-${version}.ico"
 SectionEnd
 Section "Uninstall"
  SetShellVarContext current
  ${files.map(f=>'Delete "$INSTDIR\\'+f.replaceAll('/','\\')+'"').join('\n ')}
  ${dirs.map(f=>'RMDir "$INSTDIR\\'+f.replaceAll('/','\\')+'"').join('\n ')}
- Delete "$INSTDIR\\Academie.ico"
+ Delete "$INSTDIR\\Academie-${version}.ico"
  Delete "$INSTDIR\\Verwijderen.exe"
  Delete "$DESKTOP\\Makelaar Academie.lnk"
  Delete "$SMPROGRAMS\\Makelaar Academie\\Makelaar Academie.lnk"
