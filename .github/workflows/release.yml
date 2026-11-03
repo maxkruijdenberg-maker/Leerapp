@@ -48,7 +48,15 @@ jobs:
           npm test
           npm run test:ui
       - name: Build bundle
-        run: npm run bundle:win
+        run: |
+          set +e
+          npm run bundle:win 2>&1 | tee "$RUNNER_TEMP/bundle-build.log"
+          build_status=${PIPESTATUS[0]}
+          set -e
+          if [ "$build_status" -ne 0 ]; then
+            node -e 'const fs=require("node:fs");const text=fs.readFileSync(process.argv[1],"utf8").trim().split(/\r?\n/).slice(-50).join("\n").replace(/%/g,"%25").replace(/\r/g,"%0D").replace(/\n/g,"%0A");console.log("::error title=Windows bundle build::"+text)' "$RUNNER_TEMP/bundle-build.log"
+          fi
+          exit "$build_status"
       - name: Check packaged Windows app
         run: SMOKE_EXECUTABLE="dist/win-unpacked/Makelaar Academie.exe" npm run test:desktop
       - name: Upload to existing draft
