@@ -22,7 +22,7 @@ const sourceFiles = execFileSync('git', ['ls-files', '-z', '--', 'app'], { cwd: 
 
 assert.equal(JSON.parse(asar.extractFile(appArchive, 'package.json')).version, version);
 for (const file of sourceFiles) {
-  assert.deepEqual(asar.extractFile(appArchive, file), fs.readFileSync(path.join(root, file)), 'Verpakte bron wijkt af: ' + file);
+  assert.deepEqual(asar.extractFile(appArchive, path.normalize(file)), fs.readFileSync(path.join(root, file)), 'Verpakte bron wijkt af: ' + file);
 }
 assert.equal(fs.readFileSync(path.join(dist, installer)).subarray(0, 2).toString(), 'MZ');
 assert.equal(fs.readFileSync(path.join(payload, 'Makelaar Academie.exe')).subarray(0, 2).toString(), 'MZ');
