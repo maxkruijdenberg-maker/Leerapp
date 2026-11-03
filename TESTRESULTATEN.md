@@ -1,4 +1,4 @@
-# Controles van versie 0.3
+# Controles van versie 0.3.1
 
 ## In deze ontwikkelomgeving gecontroleerd
 
@@ -9,6 +9,8 @@
 
 - Bij het openen van een invoervenster blijven de gecontroleerde achtergrondpixels gelijk; de dialoogachtergrond is transparant.
 - Het bureaubladicoon bevat een ondoorzichtige groene achtergrond in alle opgenomen Windows-formaatgroottes, van 16 tot 256 pixels.
+
+- De overgang tussen beginscherm, module, samenvatting, opdrachten, oefentoets en instellingen is over 30 gerenderde beeldframes bekeken. De gedeelde groene achtergrondpixels blijven gelijk; geen kleurtransitie, transparantie of helderheidsfilter op de pagina’s. Dit controleert de appweergave, niet eventuele automatische helderheidsregeling van een fysieke monitor.
 
 ## Bij het uitbrengen
 

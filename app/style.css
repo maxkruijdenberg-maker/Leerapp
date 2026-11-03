@@ -1,9 +1,9 @@
 :root {
-  --bg: #101b18;
-  --sidebar: #14231e;
-  --panel: #192923;
-  --panel-soft: #1d3028;
-  --line: #31463a;
+  --bg: #20392c;
+  --sidebar: #1b3026;
+  --panel: #263f31;
+  --panel-soft: #2b4938;
+  --line: #48634e;
   --text: #f0eee4;
   --muted: #a9b6aa;
   --accent: #d7bd80;
@@ -28,6 +28,15 @@ body {
     Arial,
     sans-serif;
 }
+/* Every page keeps the same green canvas when its content changes. */
+.shell,
+.app-header,
+main,
+#lesson-body {
+  background: var(--bg);
+  animation: none;
+  transition: none;
+}
 button,
 input,
 select,
@@ -38,7 +47,7 @@ button {
   cursor: pointer;
   border: 1px solid var(--line);
   border-radius: 5px;
-  background: #23392e;
+  background: var(--panel-soft);
   color: var(--text);
   padding: 10px 17px;
   transition:
@@ -147,8 +156,8 @@ small,
   height: var(--chrome-height);
   position: fixed;
   inset: 0 0 auto;
-  background: #101c17;
-  border-bottom: 1px solid #293a2e;
+  background: var(--sidebar);
+  border-bottom: 1px solid var(--line);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -183,7 +192,7 @@ small,
     sans-serif;
 }
 .window-controls button:hover {
-  background: #2e4132;
+  background: var(--panel-soft);
 }
 .window-controls .window-close:hover {
   background: #963e36;
@@ -255,12 +264,12 @@ small,
 }
 #nav button:hover,
 #modules button:hover {
-  background: #20352a;
+  background: var(--panel);
   color: var(--text);
 }
 #nav button.active,
 #modules button.active {
-  background: #293d2d;
+  background: var(--panel-soft);
   color: #ecdbb1;
 }
 .nav-icon {
@@ -393,12 +402,7 @@ main:focus {
   border: 1px solid #526047;
   border-radius: 7px;
   padding: 34px 37px;
-  background: radial-gradient(
-    ellipse at 75% 60%,
-    #2c4331 0%,
-    #233b2d 40%,
-    #1a2e25 90%
-  );
+  background: var(--panel);
   position: relative;
   overflow: hidden;
 }
@@ -482,10 +486,10 @@ main:focus {
   gap: 19px;
 }
 .module-card {
-  border: 1px solid #3e5141;
+  border: 1px solid var(--line);
   border-radius: 6px;
   padding: 22px 26px 19px;
-  background: linear-gradient(135deg, #1d3027, #182921);
+  background: var(--panel);
 }
 .module-card-top {
   display: flex;
@@ -636,7 +640,7 @@ main:focus {
   right: 0;
   width: 185px;
   z-index: 10;
-  background: #20382b;
+  background: var(--panel-soft);
   padding: 7px;
   border: 1px solid #607155;
   border-radius: 5px;
@@ -745,8 +749,8 @@ main:focus {
 .empty {
   text-align: center;
   padding: 48px 30px;
-  border: 1px dashed #52624b;
-  background: #17271f;
+  border: 1px dashed var(--line);
+  background: var(--panel);
   border-radius: 6px;
 }
 .empty h2 {
@@ -782,7 +786,7 @@ main:focus {
 }
 .video-wrap {
   border: 1px solid var(--line);
-  background: #080f0b;
+  background: var(--panel);
   border-radius: 5px;
   overflow: hidden;
 }
@@ -790,7 +794,7 @@ video {
   display: block;
   width: 100%;
   max-height: 620px;
-  background: #080f0b;
+  background: var(--sidebar);
 }
 .video-meta {
   padding: 15px 19px;
@@ -822,7 +826,7 @@ video {
   padding-right: 6px;
 }
 .playlist-row.active {
-  background: #2c4030;
+  background: var(--panel-soft);
   border-color: #8a8050;
 }
 .playlist-button {
@@ -857,7 +861,7 @@ video {
 }
 .file-row {
   border: 1px solid var(--line);
-  background: #1a2d23;
+  background: var(--panel);
   border-radius: 4px;
   padding: 15px 19px;
   margin-bottom: 9px;
@@ -921,7 +925,7 @@ video {
 .choice {
   text-align: left;
   padding: 15px 18px;
-  background: #192a20;
+  background: var(--sidebar);
   display: flex;
   gap: 15px;
   align-items: center;
@@ -964,8 +968,8 @@ video {
 input,
 textarea,
 select {
-  background: #101f16;
-  border: 1px solid #53644b;
+  background: var(--sidebar);
+  border: 1px solid var(--line);
   border-radius: 4px;
   color: var(--text);
   padding: 11px 13px;
@@ -1010,7 +1014,7 @@ label {
 }
 .note {
   padding: 14px 18px;
-  background: #26392a;
+  background: var(--panel-soft);
   border-left: 2px solid var(--accent);
   font-size: 12px;
   color: #c4cfba;
@@ -1085,7 +1089,7 @@ label {
   box-shadow: 0 8px 30px #0005;
 }
 dialog {
-  background: #1a2c22;
+  background: var(--panel);
   color: var(--text);
   border: 1px solid #75805a;
   border-radius: 7px;
@@ -1107,13 +1111,13 @@ dialog p {
   height: min(70vh, 760px);
   border: 1px solid var(--line);
   border-radius: 4px;
-  background: #e7e6dd;
+  background: var(--panel);
 }
 .document-viewer {
   width: 100%;
   height: 58vh;
   border: 1px solid var(--line);
-  background: #e7e6dd;
+  background: var(--panel);
 }
 @media (min-width: 1600px) {
   main {
@@ -1280,5 +1284,5 @@ dialog .form-actions {
   padding: 17px 0 20px;
   margin-bottom: -20px;
   border-top: 1px solid var(--line);
-  background: #1a2c22;
+  background: var(--panel);
 }

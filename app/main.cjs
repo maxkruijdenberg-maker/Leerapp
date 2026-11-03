@@ -197,7 +197,7 @@ app.whenReady().then(() => {
   session.defaultSession.webRequest.onBeforeRequest((details, callback) => callback({ cancel: /^https?:/i.test(details.url) }));
   win = new BrowserWindow({
     width: 1380, height: 920, minWidth: 940, minHeight: 650,
-    frame: false, fullscreen: true, backgroundColor: '#101b18', title: 'Makelaar Academie',
+    frame: false, fullscreen: true, backgroundColor: '#20392c', title: 'Makelaar Academie',
     icon: path.join(__dirname, 'icon.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true

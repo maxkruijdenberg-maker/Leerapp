@@ -1,4 +1,4 @@
-# Makelaar Academie — versie 0.3
+# Makelaar Academie — versie 0.3.1
 
 Je eigen offline leeromgeving voor Windows, met modules en onderwerpen die je zelf invult.
 
@@ -6,7 +6,7 @@ Je eigen offline leeromgeving voor Windows, met modules en onderwerpen die je ze
 
 1. Sluit een oudere versie van Makelaar Academie. Maak bij bestaande lessen eerst een volledige back-up in de app.
 2. Pak de volledige ZIP uit met **Alles uitpakken**.
-3. Open **Makelaar-Academie-Setup-0.3.0.exe**. Laat de map **app** naast het installatieprogramma staan.
+3. Open **Makelaar-Academie-Setup-0.3.1.exe**. Laat de map **app** naast het installatieprogramma staan.
 4. Start Makelaar Academie via de snelkoppeling op je bureaublad.
 
 De update bewaart je persoonlijke lessen en voortgang. App en installer zijn niet digitaal ondertekend; Windows kan een onbekende uitgever aangeven. De installatie wordt per gebruiker uitgevoerd. De Windows-installatie en echte video-/PDF-weergave moeten nog handmatig worden gecontroleerd.
@@ -30,7 +30,7 @@ De vrageneditor biedt een vraag, antwoord, antwoordopties en uitleg. Voor import
 
 ## Scherm en bediening
 
-De app opent volledig schermvullend, zonder de witte Windows-titelbalk. De eigen knoppen rechtsboven verkleinen het venster, wisselen tussen volledig scherm en vensterweergave, en sluiten de app. Je blijft je gewone Windows-sneltoetsen kunnen gebruiken. Bij het openen van invoervensters blijft de helderheid van de app gelijk. Het bureaublad- en taakbalkicoon is goud op herkenbaar donkergroen.
+De app opent volledig schermvullend, zonder de witte Windows-titelbalk. De eigen knoppen rechtsboven verkleinen het venster, wisselen tussen volledig scherm en vensterweergave, en sluiten de app. Je blijft je gewone Windows-sneltoetsen kunnen gebruiken. De app gebruikt op alle pagina’s één vaste, lichtere groene basis. Bij het openen van invoervensters blijft de achtergrond gelijk. Het bureaublad- en taakbalkicoon is goud op herkenbaar donkergroen.
 
 ## Importeren en veilig bewaren
 

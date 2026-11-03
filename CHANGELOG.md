@@ -1,5 +1,11 @@
 # Wijzigingen
 
+## 0.3.1
+
+- Een vaste, lichtere groene basis voor alle pagina’s en tabbladen.
+- Het beginscherm en de overige pagina’s gebruiken dezelfde paneelkleuren.
+- Geen kleurverloop of kleurtransitie op de grote paginavlakken bij het navigeren.
+
 ## 0.3.0
 
 - Vensters voor invoer en bewerken openen zonder de app op de achtergrond te verduisteren.
