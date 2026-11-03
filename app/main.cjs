@@ -4,7 +4,7 @@ const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 const crypto = require('node:crypto');
 const AdmZip = require('adm-zip');
-const { validate, safeRel, readPackage, installPackage, atomic, ID, MEDIA } = require('./core.cjs');
+const { validate, safeRel, readPackage, installPackage, atomic, ensureSubtopics, ID, MEDIA } = require('./core.cjs');
 
 protocol.registerSchemesAsPrivileged([{ scheme: 'academy', privileges: {
   standard: true, secure: true, supportFetchAPI: true, stream: true
@@ -88,12 +88,32 @@ function findTopic(pkg, topicId) {
   return topic;
 }
 
+function findSubtopic(topic, subtopicId) {
+  const part = ensureSubtopics(topic).find(item => item.id === identifier(subtopicId, 'Ongeldig deelonderwerp'));
+  assert(part, 'Deelonderwerp ontbreekt');
+  return part;
+}
+
+function learningTarget(pkg, data) {
+  const topic = findTopic(pkg, data.topicId);
+  return data.subtopicId ? findSubtopic(topic, data.subtopicId) : topic;
+}
+
 function topicVideos(topic) {
   const videos = [...(topic.videos ?? [])];
   if (topic.video && !videos.some(video => video.file === topic.video)) {
     videos.unshift({ id: 'legacy-video', title: 'Uitlegvideo', file: topic.video });
   }
   return videos;
+}
+
+function implicitClipVideo(topic, part) {
+  const scopes = [...(part ? [part] : []), topic, ...(topic.subtopics ?? [])];
+  for (const scope of scopes) {
+    const file = scope.video || topicVideos(scope)[0]?.file;
+    if (file) return file;
+  }
+  return null;
 }
 
 function handle(name, fn) {
@@ -116,7 +136,7 @@ async function confirm(message, detail, button) {
 
 function cleanProgress(packageIds) {
   const current = state();
-  for (const collection of ['topics', 'questions']) {
+  for (const collection of ['topics', 'subtopics', 'questions']) {
     for (const key of Object.keys(current.progress[collection] ?? {})) {
       if (packageIds.some(id => key.startsWith(id + '/'))) delete current.progress[collection][key];
     }
@@ -274,7 +294,7 @@ app.whenReady().then(() => {
           moduleId, moduleTitle, title: moduleTitle, topics: [] };
       }
     }
-    pkg.topics.push({ id: 'onderwerp-' + crypto.randomUUID(), title: name, summary: '', questions: [], examQuestions: [] });
+    pkg.topics.push({ id: 'onderwerp-' + crypto.randomUUID(), title: name, summary: '', questions: [], subtopics: [], examQuestions: [] });
     savePackage(pkg);
     return state();
   });
@@ -290,6 +310,98 @@ app.whenReady().then(() => {
     savePackage(pkg);
     return state();
   });
+  handle('deleteTopic', async data => {
+    assert(data && typeof data === 'object', 'Onderwerp ontbreekt');
+    const pkg = loadPackage(data.packageId);
+    const topic = findTopic(pkg, data.topicId);
+    if (!await confirm('Onderwerp verwijderen?', 'Dit onderwerp met alle deelonderwerpen, uitleg, voorbeelden, opdrachten en bijbehorende leerprogressie wordt verwijderd. Andere onderwerpen en je module blijven bestaan. Toetsgeschiedenis blijft als momentopname bewaard.', 'Verwijderen')) return null;
+    const current = state();
+    const previousManifest = fs.readFileSync(packageFile(pkg.id), 'utf8');
+    const previousReferences = validate(pkg);
+    const wasFirst = pkg.topics[0] === topic;
+    pkg.topics = pkg.topics.filter(item => item.id !== topic.id);
+    pkg.finalQuestions = (pkg.finalQuestions ?? []).filter(question => question.topicId ? question.topicId !== topic.id : !wasFirst);
+    savePackage(pkg);
+    const references = validate(pkg);
+    const key = pkg.id + '/' + topic.id;
+    const belongs = value => typeof value === 'string' && (value === key || value.startsWith(key + '/'));
+    for (const collection of ['topics', 'subtopics', 'questions']) {
+      for (const progressKey of Object.keys(current.progress[collection] ?? {})) {
+        if (belongs(progressKey)) delete current.progress[collection][progressKey];
+      }
+    }
+    if (belongs(current.progress.last)) delete current.progress.last;
+    try { atomic(progressFile, current.progress); }
+    catch (error) { atomic(packageFile(pkg.id), previousManifest); throw error; }
+    for (const file of previousReferences) if (!references.includes(file)) fs.rmSync(path.join(packages, pkg.id, file), { force: true });
+    return state();
+  });
+  handle('newSubtopic', data => {
+    assert(data && typeof data === 'object', 'Deelonderwerp ontbreekt');
+    const pkg = loadPackage(data.packageId);
+    const topic = findTopic(pkg, data.topicId);
+    const parts = ensureSubtopics(topic);
+    parts.push({ id: 'deel-' + crypto.randomUUID(), title: title(data.title), summary: '', assignmentText: '', questions: [], examples: [] });
+    savePackage(pkg);
+    return state();
+  });
+  handle('updateSubtopic', data => {
+    assert(data && typeof data === 'object', 'Deelonderwerp ontbreekt');
+    const pkg = loadPackage(data.packageId);
+    const part = findSubtopic(findTopic(pkg, data.topicId), data.subtopicId);
+    if (Object.hasOwn(data, 'title')) part.title = title(data.title);
+    for (const field of ['summary', 'assignmentText', 'questions', 'examples']) {
+      if (Object.hasOwn(data, field)) part[field] = data[field];
+    }
+    if (Object.hasOwn(data, 'summary')) delete part.pdf;
+    savePackage(pkg);
+    return state();
+  });
+  handle('moveSubtopic', data => {
+    assert(data && ['up', 'down'].includes(data.direction), 'Ongeldige verplaatsing');
+    const pkg = loadPackage(data.packageId);
+    const topic = findTopic(pkg, data.topicId);
+    const parts = ensureSubtopics(topic);
+    const part = findSubtopic(topic, data.subtopicId);
+    const index = parts.indexOf(part);
+    const next = index + (data.direction === 'up' ? -1 : 1);
+    assert(next >= 0 && next < parts.length, 'Deelonderwerp kan niet verder worden verplaatst');
+    [parts[index], parts[next]] = [parts[next], parts[index]];
+    savePackage(pkg);
+    return state();
+  });
+  handle('deleteSubtopic', async data => {
+    assert(data && typeof data === 'object', 'Deelonderwerp ontbreekt');
+    const pkg = loadPackage(data.packageId);
+    const topic = findTopic(pkg, data.topicId);
+    const part = findSubtopic(topic, data.subtopicId);
+    if (!await confirm('Deelonderwerp verwijderen?', 'De uitleg, voorbeelden en opdrachten van dit deelonderwerp worden verwijderd. De eindtoets en andere deelonderwerpen blijven bewaard.', 'Verwijderen')) return null;
+    const remainingParts = topic.subtopics.filter(item => item.id !== part.id);
+    const remainingTopic = { ...topic, subtopics: remainingParts };
+    const outsideQuestions = [
+      ...[...(topic.questions ?? []), ...(topic.examQuestions ?? []),
+        ...(pkg.finalQuestions ?? []).filter(question => question.topicId === topic.id || (!question.topicId && topic === pkg.topics[0]))]
+        .map(question => ({ question })),
+      ...remainingParts.flatMap(section => (section.questions ?? []).map(question => ({ question, section })))
+    ];
+    assert(!outsideQuestions.some(({ question, section }) => question.clip && !question.clip.videoId &&
+      implicitClipVideo(topic, section) !== implicitClipVideo(remainingTopic, section)),
+    'Dit deelonderwerp bevat een video voor hulpfragmenten bij overblijvende vragen. Pas die vragen eerst aan.');
+    const current = state();
+    const previousManifest = fs.readFileSync(packageFile(pkg.id), 'utf8');
+    const previousReferences = validate(pkg);
+    topic.subtopics = remainingParts;
+    savePackage(pkg);
+    const references = validate(pkg);
+    const key = pkg.id + '/' + topic.id;
+    if (current.progress.subtopics) delete current.progress.subtopics[key + '/' + part.id];
+    if (current.progress.topics?.[key]?.subtopics) delete current.progress.topics[key].subtopics[part.id];
+    for (const question of part.questions ?? []) if (current.progress.questions) delete current.progress.questions[key + '/' + question.id];
+    try { atomic(progressFile, current.progress); }
+    catch (error) { atomic(packageFile(pkg.id), previousManifest); throw error; }
+    for (const file of previousReferences) if (!references.includes(file)) fs.rmSync(path.join(packages, pkg.id, file), { force: true });
+    return state();
+  });
   handle('import', async () => {
     const selection = await dialog.showOpenDialog(win, {
       title: 'Lespakket toevoegen', filters: [{ name: 'Lespakket', extensions: ['zip', 'lespakket', 'json'] }], properties: ['openFile']
@@ -303,14 +415,15 @@ app.whenReady().then(() => {
     return state();
   });
   handle('attach', async data => {
-    assert(data && ['summary', 'video', 'assignment', 'practice', 'exam', 'overviewVideo'].includes(data.kind), 'Ongeldige selectie');
+    assert(data && ['summary', 'video', 'assignment', 'practice', 'exam', 'overviewVideo', 'example'].includes(data.kind), 'Ongeldige selectie');
     const { kind } = data;
     const pkg = loadPackage(data.packageId);
-    const topic = kind === 'overviewVideo' ? null : findTopic(pkg, data.topicId);
+    const topic = kind === 'overviewVideo' ? null : learningTarget(pkg, data);
+    assert(!data.subtopicId || !['exam', 'overviewVideo'].includes(kind), 'De eindtoets hoort bij het onderwerp');
     const extensions = ['video', 'overviewVideo'].includes(kind) ? VIDEO_EXTENSIONS :
-      kind === 'practice' ? ['json'] : kind === 'exam' ? ['json', ...DOCUMENT_EXTENSIONS] : DOCUMENT_EXTENSIONS;
+      kind === 'example' ? ['png', 'jpg', 'jpeg', 'webp', 'gif'] : kind === 'practice' ? ['json'] : kind === 'exam' ? ['json', ...DOCUMENT_EXTENSIONS] : DOCUMENT_EXTENSIONS;
     const titles = { summary: 'Samenvatting uploaden', video: 'Video’s toevoegen', overviewVideo: 'Overzichtsfilm uploaden',
-      assignment: 'Opdrachten uploaden', practice: 'Oefenvragen importeren', exam: 'Oefentoets uploaden' };
+      example: 'Voorbeeldafbeelding toevoegen', assignment: 'Opdrachten uploaden', practice: 'Oefenvragen importeren', exam: 'Oefentoets uploaden' };
     const multiple = ['video', 'assignment'].includes(kind);
     const selection = await dialog.showOpenDialog(win, {
       title: titles[kind], filters: [{ name: titles[kind], extensions }],
@@ -339,7 +452,12 @@ app.whenReady().then(() => {
         const file = 'assets/' + crypto.randomUUID() + '.' + extension;
         plans.push({ source, file });
         const attachment = { id: 'bestand-' + crypto.randomUUID(), title: path.basename(source), file };
-        if (kind === 'video') {
+        if (kind === 'example') {
+          attachment.title = data.title === undefined ? path.basename(source) : title(data.title);
+          attachment.caption = data.caption ?? '';
+          attachment.source = data.source ?? '';
+          (topic.examples ??= []).push(attachment);
+        } else if (kind === 'video') {
           topic.videos = topicVideos(topic);
           topic.videos.push(attachment);
           topic.video ??= file;
@@ -355,17 +473,20 @@ app.whenReady().then(() => {
     return state();
   });
   handle('removeAttachment', data => {
-    assert(data && ['video', 'assignment', 'exam'].includes(data.kind), 'Ongeldige selectie');
+    assert(data && ['video', 'assignment', 'exam', 'example'].includes(data.kind), 'Ongeldige selectie');
     const pkg = loadPackage(data.packageId);
-    const topic = findTopic(pkg, data.topicId);
-    const field = data.kind === 'video' ? 'videos' : data.kind === 'exam' ? 'examFiles' : 'assignments';
+    const parentTopic = findTopic(pkg, data.topicId);
+    const topic = data.subtopicId ? findSubtopic(parentTopic, data.subtopicId) : parentTopic;
+    assert(!data.subtopicId || data.kind !== 'exam', 'De eindtoets hoort bij het onderwerp');
+    const field = data.kind === 'video' ? 'videos' : data.kind === 'exam' ? 'examFiles' : data.kind === 'example' ? 'examples' : 'assignments';
     const items = data.kind === 'video' ? topicVideos(topic) : topic[field] ?? [];
     const item = items.find(attachment => attachment.id === identifier(data.id, 'Ongeldige bijlage'));
     assert(item, 'Bijlage ontbreekt');
     if (data.kind === 'video') {
       const primaryFile = topic.video ?? topicVideos(topic)[0]?.file;
-      const questions = [...(topic.questions ?? []), ...(topic.examQuestions ?? []),
-        ...(pkg.finalQuestions ?? []).filter(question => question.topicId === topic.id || (!question.topicId && topic === pkg.topics[0]))];
+      const questions = [...(parentTopic.questions ?? []), ...(parentTopic.examQuestions ?? []),
+        ...(parentTopic.subtopics ?? []).flatMap(part => part.questions ?? []),
+        ...(pkg.finalQuestions ?? []).filter(question => question.topicId === parentTopic.id || (!question.topicId && parentTopic === pkg.topics[0]))];
       assert(!questions.some(question => question.clip && (question.clip.videoId === item.id ||
         (!question.clip.videoId && item.file === primaryFile))),
       'Deze video wordt gebruikt door hulpfragmenten. Pas die vragen eerst aan.');

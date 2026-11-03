@@ -126,3 +126,67 @@ test('Attachment collections reject duplicate IDs, executable files and a docume
   pkg.topics[0].videos = [{ id: 'film', title: 'A', file: 'assets/a.pdf' }];
   assert.throws(() => validate(pkg), /Bestandstype/);
 });
+
+test('Legacy content becomes the first subtopic without changing question IDs or final exam', () => {
+  const { ensureSubtopics } = require('../app/core.cjs');
+  const pkg = fresh();
+  const topic = pkg.topics[0];
+  const oldQuestions = structuredClone(topic.questions);
+  const final = structuredClone(topic.examQuestions);
+  const video = topic.video;
+  const parts = ensureSubtopics(topic);
+  assert.equal(parts.length, 1);
+  assert.equal(parts[0].id, 'legacy');
+  assert.deepEqual(parts[0].questions, oldQuestions);
+  assert.deepEqual(topic.examQuestions, final);
+  assert.equal(parts[0].video, video);
+  assert.equal(topic.summary, undefined);
+  assert.equal(topic.questions, undefined);
+  assert(validate(pkg).includes(video));
+  assert.equal(ensureSubtopics(topic), parts);
+  assert.equal(parts.length, 1);
+});
+
+test('Subtopics validate all examples and question media and import their local assets', t => {
+  const root = temporaryRoot(t);
+  const pkg = fresh();
+  const topic = pkg.topics[0];
+  topic.subtopics = [{ id: 'deel-1', title: 'Eerste uitleg', summary: '# Kern', questions: [], examples: [
+    { id: 'beeld-1', title: 'Voorbeeld', file: 'assets/voorbeeld.png', caption: 'Een beschrijving.', source: 'Eigen schema.' }
+  ] }];
+  const zip = new AdmZip();
+  zip.addLocalFolder(path.join(__dirname, '../app/demo'));
+  zip.updateFile('lespakket.json', Buffer.from(JSON.stringify(pkg)));
+  zip.addFile('assets/voorbeeld.png', Buffer.from('image bytes'));
+  const archive = path.join(root, 'parts.lespakket');
+  zip.writeZip(archive);
+  const refs = readPackage(archive);
+  assert.equal(refs.assets.get('assets/voorbeeld.png')().toString(), 'image bytes');
+  const dest = path.join(root, 'installed');
+  installPackage(archive, dest);
+  const imported = readPackage(path.join(dest, pkg.id, 'lespakket.json'));
+  assert.equal(imported.p.topics[0].subtopics[0].examples[0].caption, 'Een beschrijving.');
+  assert(imported.assets.has('assets/voorbeeld.png'));
+});
+
+test('Reject duplicate subtopic IDs, unsafe example types and question IDs reused across sections or exam', () => {
+  const pkg = fresh();
+  const t = pkg.topics[0];
+  const q = { id: 'subvraag', type: 'open', prompt: 'Leg uit.', answer: 'Goed.' };
+  t.subtopics = [{ id: 'deel', title: 'Een', questions: [q] }, { id: 'deel', title: 'Twee', questions: [] }];
+  assert.throws(() => validate(pkg), /deelonderwerp-ID/);
+  t.subtopics[1].id = 'twee';
+  t.subtopics[1].questions = [q];
+  assert.throws(() => validate(pkg), /verschillende IDs/);
+  t.subtopics[1].questions = [];
+  t.examQuestions.push(q);
+  assert.throws(() => validate(pkg), /verschillende IDs/);
+  t.examQuestions.pop();
+  t.subtopics[0].examples = [{ id: 'beeld', title: 'X', file: 'assets/script.html' }];
+  assert.throws(() => validate(pkg), /Bestandstype/);
+  t.subtopics[0].examples[0].file = '../foto.png';
+  assert.throws(() => validate(pkg), /bestandspad/);
+  t.subtopics[0].examples[0].file = 'assets/foto.png';
+  t.subtopics[0].examples[0].source = 42;
+  assert.throws(() => validate(pkg), /Tekst/);
+});

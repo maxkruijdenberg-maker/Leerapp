@@ -94,3 +94,39 @@ Dit is een veldenvoorbeeld: neem alleen verwijzingen op naar werkelijk meegeleve
 Het oude veld `video` blijft de primaire video voor bestaande hulpfragmenten. Nieuwe hulpfragmenten kunnen met `clip.videoId` naar het ID in `videos` verwijzen. Verwijderen van een gebruikte hulpvideo wordt geblokkeerd zolang vragen ernaar verwijzen.
 
 Een los vragenbestand kan een JSON-array zijn, of een object met `questions`. Bij een oefentoets mag het object ook `examQuestions` gebruiken. Het vraagformaat is hetzelfde als hierboven. Verwijs alleen naar media die al in het onderwerp/pakket aanwezig zijn, of importeer een compleet lespakket met media. Gebruik nieuwe vraag-IDs wanneer betekenis of antwoorden veranderen, zodat oude resultaten niet met een andere vraag worden verward.
+
+## Deelonderwerpen vanaf appversie 0.4
+
+Gebruik `schemaVersion: 1`. Een onderwerp kan een geordende lijst `subtopics` bevatten. Iedere deel-ID is uniek binnen het onderwerp. Gebruik ook unieke vraag-IDs over alle delen en de eindtoets van hetzelfde onderwerp; houd IDs stabiel bij kleine tekstcorrecties.
+
+```json
+{
+  "id": "onderwerp-1",
+  "title": "Mijn onderwerp",
+  "subtopics": [
+    {
+      "id": "deel-1",
+      "title": "Eerste deel",
+      "summary": "# Uitleg\n\nEen kort stuk tekst met een bronverwijzing.",
+      "examples": [
+        {
+          "id": "voorbeeld-1",
+          "title": "Een echt voorbeeld",
+          "file": "assets/voorbeeld.jpg",
+          "caption": "Wat de leerling in deze afbeelding moet herkennen.",
+          "source": "Maker, herkomst, publicatiedatum en eventuele licentie."
+        }
+      ],
+      "assignmentText": "Beschrijf wat je in het voorbeeld herkent.",
+      "questions": []
+    }
+  ],
+  "examQuestions": []
+}
+```
+
+Dit voorbeeld bevat een mediaverwijzing: lever `assets/voorbeeld.jpg` daadwerkelijk mee of laat het voorbeeld weg. Voorbeelden gebruiken PNG, JPG/JPEG, WebP of GIF en staan lokaal in het pakket. Maak onderscheid tussen een echte foto en een eigen schematische illustratie; gebruik een gegenereerd beeld niet als bewijs van een bestaand gebouw. Voeg bron en beeldrechten toe waar bekend. De app haalt zelf geen afbeeldingen van internet op.
+
+Plaats de oefenvragen in het betreffende deel en de afzonderlijk samengestelde eindtoetsvragen in `topic.examQuestions`. De app leidt de leerling langs uitleg, opdrachten, volgende deel en daarna de onderwerpseindtoets. Die volgorde is geen automatische controle op officiële examendekking. Open antwoorden worden door de leerling beoordeeld. Een lege eindtoets wordt niet automatisch door AI gevuld.
+
+Deelonderwerpen kunnen bij bestaande lessen ook oudere `pdf`, `video`, `videos` en `assignments`-velden behouden. Bij het toevoegen van het eerste deel aan een oud onderwerp wordt de bestaande leerinhoud onderdeel van het deel met ID `legacy`; de onderwerpseindtoets blijft op onderwerpniveau staan. Vraag-ID's en bestaande vraagvoortgang blijven behouden. Pakket-/cursuseindtoetsen blijven apart van onderwerpseindtoetsen beschikbaar.

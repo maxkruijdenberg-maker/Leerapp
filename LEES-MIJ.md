@@ -1,4 +1,4 @@
-# Makelaar Academie — versie 0.3.1
+# Makelaar Academie — versie 0.4.0
 
 Je eigen offline leeromgeving voor Windows, met modules en onderwerpen die je zelf invult.
 
@@ -6,27 +6,37 @@ Je eigen offline leeromgeving voor Windows, met modules en onderwerpen die je ze
 
 1. Sluit een oudere versie van Makelaar Academie. Maak bij bestaande lessen eerst een volledige back-up in de app.
 2. Pak de volledige ZIP uit met **Alles uitpakken**.
-3. Open **Makelaar-Academie-Setup-0.3.1.exe**. Laat de map **app** naast het installatieprogramma staan.
+3. Open **Makelaar-Academie-Setup-0.4.0.exe**. Laat de map **app** naast het installatieprogramma staan.
 4. Start Makelaar Academie via de snelkoppeling op je bureaublad.
 
 De update bewaart je persoonlijke lessen en voortgang. App en installer zijn niet digitaal ondertekend; Windows kan een onbekende uitgever aangeven. De installatie wordt per gebruiker uitgevoerd. De Windows-installatie en echte video-/PDF-weergave moeten nog handmatig worden gecontroleerd.
 
 ## Je eigen modules
 
-Kies **Module toevoegen**, geef de module een eigen naam en open hem. Maak daarna onderwerpen aan met je eigen titels. Je kunt een module later hernoemen. Verwijderen vraagt bevestiging en verwijdert de bijbehorende lessen en bestanden; maak vooraf een back-up als je ze wilt bewaren.
+Kies **Module toevoegen**, geef de module een eigen naam en open hem. Maak daarna onderwerpen aan met je eigen titels. Je kunt een module later hernoemen en een onderwerp via het onderwerpsoverzicht verwijderen. Na bevestiging worden de bijbehorende delen en voortgang verwijderd; andere onderwerpen blijven behouden. Verwijderen vraagt bevestiging en verwijdert de bijbehorende lessen en bestanden; maak vooraf een back-up als je ze wilt bewaren.
 
 Bestaande modules en onderwerpen uit V0.1 worden overgenomen. De demonstratieles laat zien hoe de app werkt en bevat geen officiële examenstof. Je kunt die module hernoemen of verwijderen.
 
-## Een onderwerp vullen
+## Leren in deelonderwerpen
 
-Ieder onderwerp heeft vier onderdelen:
+Een module bevat onderwerpen, bijvoorbeeld een hoofdstuk uit je opleiding. Binnen een onderwerp maak je deelonderwerpen die je in volgorde doorloopt.
 
-- **Samenvatting:** schrijf de tekst rechtstreeks in de app of upload een PDF, TXT of Markdown-bestand. Een tekstbewerking vervangt een eerder gekoppelde PDF.
-- **Video's:** voeg een of meer MP4-/WebM-bestanden toe en kies de video die je wilt bekijken. Bestanden worden naar de app gekopieerd. Gebruik MP4 met H.264/AAC of WebM voor brede compatibiliteit.
-- **Opdrachten:** schrijf opdrachttekst, voeg PDF-/tekst-/Markdown-documenten toe en maak interactieve vragen. Meerkeuze- en rekenvragen worden automatisch beoordeeld; open vragen beoordeel je zelf aan de hand van het modelantwoord.
-- **Oefentoets:** stel eigen toetsvragen samen of importeer een JSON-vragenlijst. Een PDF-/teksttoets kan ook als document worden toegevoegd. Documenten worden niet automatisch naar interactieve vragen omgezet. Tijdens een interactieve toets krijg je de antwoorden pas na het inleveren.
+1. Kies **Deelonderwerp toevoegen** en vul een titel in.
+2. Schrijf of upload de uitleg. Tekst staat rechtstreeks op de pagina; een oude PDF blijft als bijlage beschikbaar als de les die gebruikt.
+3. Voeg voorbeelden toe als lokale afbeeldingsbestanden, met een titel, onderschrift en bron. De app bewaart deze bestanden zodat je offline kunt leren.
+4. Voeg opdrachten toe: opdrachttekst, documenten of interactieve meerkeuze-, reken- en open vragen.
+5. Lees de uitleg, maak de opdrachten en rond het deel af. Ga daarna door naar het volgende deel.
+6. Na alle delen wordt de **eindtoets van het onderwerp** beschikbaar. Antwoorden en uitleg verschijnen na het inleveren.
 
-De vrageneditor biedt een vraag, antwoord, antwoordopties en uitleg. Voor import gebruik je een JSON-array met vragen of een object met `questions`; voor toetsvragen mag ook `examQuestions` worden gebruikt. In de broncode staat `examples/vragenlijst.json` als invulvoorbeeld. Gebruik het lespakketformaat uit de meegeleverde briefing voor afbeeldingen, video's en gekoppelde hulpfragmenten. Vervangen van bestaande vragen vraagt bevestiging.
+Je kunt onderdelen teruglezen en opnieuw oefenen. Een deel afronden betekent dat je het hebt doorlopen; de app verzint geen voldoende of verplichte examencesuur. Open antwoorden beoordeel je zelf aan het modelantwoord; automatische percentages hebben alleen betrekking op automatisch beoordeelbare vragen.
+
+De volgorde van delen kun je aanpassen. Bij het verwijderen van een deel blijven andere delen en de eindtoets behouden. Maak een back-up voordat je eigen inhoud verwijdert of een compleet lespakket vervangt.
+
+## Bestaande lessen en extra bestanden
+
+Bestaande onderwerpen blijven bruikbaar als uitleg met opdrachten. Voeg je er een deel aan toe, dan wordt de bestaande leerinhoud het eerste deel, met behoud van vragen en media; de onderwerpstoets blijft de eindtoets. Bestaande PDF's, video's en hulpfragmenten blijven ondersteund.
+
+Gebruik voor vragenimport een JSON-array met vragen of een object met `questions`. Bij een onderwerpseindtoets kan ook `examQuestions` worden gebruikt. Een PDF-/teksttoets is een document en wordt niet automatisch naar interactieve vragen omgezet. Gebruik het lespakketformaat uit de meegeleverde briefing voor afbeeldingen en bronvermeldingen.
 
 ## Scherm en bediening
 

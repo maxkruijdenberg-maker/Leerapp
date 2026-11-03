@@ -361,3 +361,252 @@ test('Videos-only imports protect the first video used by implicit clips while u
   assert.deepEqual(fs.readFileSync(primaryFile), primaryBytes);
   assert(!fs.existsSync(path.join(h.root, 'packages', pkg.id, 'assets/tweede.mp4')));
 });
+
+test('Subtopics are created, ordered and edited independently; examples and progress survive export and backup', async t => {
+  const h = await desktop(t);
+  let { pkg, topic } = await moduleAndTopic(h);
+  const target = { packageId: pkg.id, topicId: topic.id };
+  assert.deepEqual(topic.subtopics, []);
+  let current = await h.invoke('newSubtopic', { ...target, title: 'Eerste stap' });
+  topic = current.packages.find(p => p.id === pkg.id).topics[0];
+  const first = topic.subtopics[0];
+  current = await h.invoke('newSubtopic', { ...target, title: 'Tweede stap' });
+  topic = current.packages.find(p => p.id === pkg.id).topics[0];
+  const second = topic.subtopics[1];
+  const one = { ...target, subtopicId: first.id };
+  const two = { ...target, subtopicId: second.id };
+  await h.invoke('updateSubtopic', { ...one, summary: '# Stap een\n\nEerste tekst.', assignmentText: 'Werk uit.', questions: [choice('deelvraag-1')] });
+  await h.invoke('updateSubtopic', { ...two, summary: 'Tweede tekst.', questions: [choice('deelvraag-2')] });
+  await h.invoke('updateTopic', { ...target, examQuestions: [choice('onderwerp-eindtoets')] });
+  h.open(path.join(demoDirectory, 'assets/vormen.png'));
+  current = await h.invoke('attach', { ...one, kind: 'example', title: 'Vormvoorbeeld', caption: 'Let op de vorm.', source: 'Eigen demonstratieschema.' });
+  pkg = current.packages.find(p => p.id === pkg.id);
+  let example = pkg.topics[0].subtopics[0].examples[0];
+  assert.equal(example.caption, 'Let op de vorm.');
+  assert.equal(example.source, 'Eigen demonstratieschema.');
+  assert(h.openOptions().filters[0].extensions.includes('png'));
+  await h.invoke('updateSubtopic', { ...two, examples: [{ ...example, id: 'gedeeld-voorbeeld' }] });
+  const key = pkg.id + '/' + topic.id;
+  const progress = { topics: { [key]: { done: true, subtopics: { [first.id]: { read: true, done: true }, [second.id]: { read: true } } } },
+    questions: { [key + '/deelvraag-1']: { correct: true }, [key + '/deelvraag-2']: { correct: true } }, attempts: [{ title: 'Behoud toets' }] };
+  await h.invoke('save', progress);
+  current = await h.invoke('moveSubtopic', { ...two, direction: 'up' });
+  assert.equal(current.packages.find(p => p.id === pkg.id).topics[0].subtopics[0].id, second.id);
+  assert.equal(current.progress.topics[key].subtopics[first.id].done, true);
+  const exported = path.join(h.root, 'subtopics.lespakket');
+  h.save(exported); await h.invoke('exportPackage', pkg.id);
+  const packaged = readPackage(exported);
+  assert.equal(packaged.p.topics[0].subtopics.length, 2);
+  assert(packaged.assets.has(example.file));
+  const backup = path.join(h.root, 'subtopics-backup.zip');
+  h.save(backup); await h.invoke('backup');
+  h.answer(0);
+  assert.equal(await h.invoke('deleteSubtopic', one), null);
+  h.answer(1);
+  current = await h.invoke('deleteSubtopic', one);
+  topic = current.packages.find(p => p.id === pkg.id).topics[0];
+  assert.equal(topic.subtopics.length, 1);
+  assert.equal(topic.subtopics[0].id, second.id);
+  assert.equal(topic.examQuestions[0].id, 'onderwerp-eindtoets');
+  assert.equal(current.progress.topics[key].done, true);
+  assert.equal(current.progress.topics[key].subtopics[first.id], undefined);
+  assert.equal(current.progress.topics[key].subtopics[second.id].read, true);
+  assert.equal(current.progress.questions[key + '/deelvraag-1'], undefined);
+  assert.equal(current.progress.questions[key + '/deelvraag-2'].correct, true);
+  assert.equal(current.progress.attempts[0].title, 'Behoud toets');
+  assert(fs.existsSync(path.join(h.root, 'packages', pkg.id, example.file)), 'Shared example remains');
+  h.open(backup); current = await h.invoke('restore');
+  topic = current.packages.find(p => p.id === pkg.id).topics[0];
+  assert.equal(topic.subtopics.length, 2);
+  assert.equal(current.progress.topics[key].subtopics[first.id].done, true);
+  assert.equal(current.progress.questions[key + '/deelvraag-1'].correct, true);
+  current = await h.invoke('removeAttachment', { ...one, kind: 'example', id: example.id });
+  assert.equal(current.packages.find(p => p.id === pkg.id).topics[0].subtopics.find(p => p.id === first.id).examples.length, 0);
+  assert(fs.existsSync(path.join(h.root, 'packages', pkg.id, example.file)), 'Other subtopic still uses file');
+  await h.invoke('removeAttachment', { ...two, kind: 'example', id: 'gedeeld-voorbeeld' });
+  assert(!fs.existsSync(path.join(h.root, 'packages', pkg.id, example.file)), 'Unused example is removed');
+});
+
+test('First subtopic addition migrates old material, preserves IDs and keeps the final exam on its topic', async t => {
+  const h = await desktop(t);
+  const original = (await h.invoke('state')).packages[0];
+  const topic = original.topics[0];
+  const target = { packageId: original.id, topicId: topic.id };
+  const current = await h.invoke('newSubtopic', { ...target, title: 'Volgende les' });
+  const updated = current.packages.find(p => p.id === original.id).topics[0];
+  assert.equal(updated.subtopics.length, 2);
+  assert.equal(updated.subtopics[0].id, 'legacy');
+  assert.equal(updated.subtopics[0].summary, topic.summary);
+  assert.equal(updated.subtopics[0].video, topic.video);
+  assert.deepEqual(updated.subtopics[0].questions, topic.questions);
+  assert.deepEqual(updated.examQuestions, topic.examQuestions);
+  assert.equal(updated.summary, undefined);
+  assert.equal(updated.questions, undefined);
+  assert(fs.existsSync(path.join(h.root, 'packages', original.id, topic.video)));
+  const rejected = await h.raw('removeAttachment', [{ ...target, subtopicId: 'legacy', kind: 'video', id: 'legacy-video' }]);
+  assert.equal(rejected.ok, false);
+  assert.match(rejected.error, /hulpfragmenten/);
+});
+
+test('Invalid section edits, missing images and canceled imports do not damage saved content', async t => {
+  const h = await desktop(t);
+  const { pkg, topic } = await moduleAndTopic(h);
+  const target = { packageId: pkg.id, topicId: topic.id };
+  let current = await h.invoke('newSubtopic', { ...target, title: 'Deel' });
+  const part = current.packages.find(p => p.id === pkg.id).topics[0].subtopics[0];
+  const request = { ...target, subtopicId: part.id };
+  await h.invoke('updateSubtopic', { ...request, questions: [choice('bestaande-vraag')] });
+  const original = fs.readFileSync(h.manifest(pkg.id), 'utf8');
+  assert.equal((await h.raw('updateSubtopic', [{ ...request, examples: [{ id: 'x', title: 'X', file: 'assets/mist.png' }] }])).ok, false);
+  assert.equal((await h.raw('updateSubtopic', [{ ...request, questions: [{ ...choice(), answer: 8 }] }])).ok, false);
+  assert.equal((await h.raw('moveSubtopic', [{ ...request, direction: 'up' }])).ok, false);
+  assert.equal((await h.raw('newSubtopic', [{ ...target, title: ' ' }])).ok, false);
+  assert.equal((await h.raw('attach', [{ ...request, kind: 'exam' }])).ok, false);
+  h.open(h.write('nieuwe-vragen.json', JSON.stringify([choice('andere-vraag')])));
+  h.answer(0);
+  assert.equal(await h.invoke('attach', { ...request, kind: 'practice' }), null);
+  assert.equal(fs.readFileSync(h.manifest(pkg.id), 'utf8'), original);
+  h.answer(1);
+  h.open(h.write('stuk.md', '# Nieuwe tekst'));
+  current = await h.invoke('attach', { ...request, kind: 'summary' });
+  assert.equal(current.packages.find(p => p.id === pkg.id).topics[0].subtopics[0].summary, '# Nieuwe tekst');
+});
+
+test('Topic deletion cancels safely, isolates progress and assets, and keeps the last module empty', async t => {
+  const h = await desktop(t);
+  let { pkg, topic } = await moduleAndTopic(h);
+  const first = { packageId: pkg.id, topicId: topic.id };
+  let current = await h.invoke('newSubtopic', { ...first, title: 'Deel een' });
+  let part = current.packages.find(p => p.id === pkg.id).topics[0].subtopics[0];
+  const imageSource = path.join(demoDirectory, 'assets/vormen.png');
+  h.open(imageSource);
+  current = await h.invoke('attach', { ...first, subtopicId: part.id, kind: 'example', source: 'Eigen schema.' });
+  pkg = current.packages.find(p => p.id === pkg.id);
+  const shared = pkg.topics[0].subtopics[0].examples[0];
+  current = await h.invoke('newTopic', { packageId: pkg.id, title: 'Ander onderwerp' });
+  pkg = current.packages.find(p => p.id === pkg.id);
+  const secondTopic = pkg.topics[1];
+  const second = { packageId: pkg.id, topicId: secondTopic.id };
+  current = await h.invoke('newSubtopic', { ...second, title: 'Ander deel' });
+  const otherPart = current.packages.find(p => p.id === pkg.id).topics[1].subtopics[0];
+  await h.invoke('updateSubtopic', { ...second, subtopicId: otherPart.id, examples: [{ ...shared, id: 'gedeeld' }] });
+  // One local image used only by the topic being deleted.
+  h.open(imageSource);
+  current = await h.invoke('attach', { ...first, subtopicId: part.id, kind: 'example', title: 'Alleen eerste' });
+  pkg = current.packages.find(p => p.id === pkg.id);
+  const exclusive = pkg.topics[0].subtopics[0].examples[1];
+  pkg.finalQuestions = [
+    { ...choice('final-first'), topicId: topic.id },
+    { ...choice('final-second'), topicId: secondTopic.id },
+    choice('implicit-first')
+  ];
+  fs.writeFileSync(h.manifest(pkg.id), JSON.stringify(pkg));
+  const firstKey = pkg.id + '/' + topic.id;
+  const secondKey = pkg.id + '/' + secondTopic.id;
+  const otherPackageKey = 'ander-pakket/' + topic.id;
+  await h.invoke('save', {
+    topics: { [firstKey]: { done: true, subtopics: { [part.id]: { read: true } } }, [secondKey]: { done: true }, [otherPackageKey]: { done: true } },
+    subtopics: { [firstKey + '/' + part.id]: { done: true }, [secondKey + '/' + otherPart.id]: { done: true } },
+    questions: { [firstKey + '/vraag']: { correct: true }, [secondKey + '/vraag']: { correct: true }, [otherPackageKey + '/vraag']: { correct: true } },
+    last: firstKey, attempts: [{ title: 'Oude toets', answers: [{ packageId: pkg.id, topicId: topic.id }] }]
+  });
+  const before = fs.readFileSync(h.manifest(pkg.id), 'utf8');
+  h.answer(0);
+  assert.equal(await h.invoke('deleteTopic', first), null);
+  assert.equal(fs.readFileSync(h.manifest(pkg.id), 'utf8'), before);
+  assert(fs.existsSync(path.join(h.root, 'packages', pkg.id, exclusive.file)));
+  h.answer(1);
+  current = await h.invoke('deleteTopic', first);
+  pkg = current.packages.find(p => p.id === pkg.id);
+  assert.equal(pkg.topics.length, 1);
+  assert.equal(pkg.topics[0].id, secondTopic.id);
+  assert.deepEqual(pkg.finalQuestions.map(q => q.id), ['final-second']);
+  assert.equal(current.progress.topics[firstKey], undefined);
+  assert.equal(current.progress.subtopics[firstKey + '/' + part.id], undefined);
+  assert.equal(current.progress.questions[firstKey + '/vraag'], undefined);
+  assert.equal(current.progress.last, undefined);
+  assert.equal(current.progress.topics[secondKey].done, true);
+  assert.equal(current.progress.questions[secondKey + '/vraag'].correct, true);
+  assert.equal(current.progress.questions[otherPackageKey + '/vraag'].correct, true);
+  assert.equal(current.progress.attempts[0].title, 'Oude toets');
+  assert(fs.existsSync(path.join(h.root, 'packages', pkg.id, shared.file)));
+  assert(!fs.existsSync(path.join(h.root, 'packages', pkg.id, exclusive.file)));
+  current = await h.invoke('deleteTopic', second);
+  pkg = current.packages.find(p => p.id === pkg.id);
+  assert.equal(pkg.topics.length, 0);
+  assert.equal(pkg.finalQuestions.length, 0);
+  assert(current.modules.some(m => m.id === pkg.moduleId));
+  assert(!fs.existsSync(path.join(h.root, 'packages', pkg.id, shared.file)));
+});
+
+test('Deleting a later topic preserves implicit final questions attached to the existing first topic', async t => {
+  const h = await desktop(t);
+  let { pkg, topic } = await moduleAndTopic(h);
+  const current = await h.invoke('newTopic', { packageId: pkg.id, title: 'Tweede onderwerp' });
+  pkg = current.packages.find(p => p.id === pkg.id);
+  const secondId = pkg.topics[1].id;
+  pkg.finalQuestions = [choice('implicit-first'), { ...choice('explicit-second'), topicId: secondId }];
+  fs.writeFileSync(h.manifest(pkg.id), JSON.stringify(pkg));
+  const after = await h.invoke('deleteTopic', { packageId: pkg.id, topicId: secondId });
+  const kept = after.packages.find(p => p.id === pkg.id);
+  assert.equal(kept.topics[0].id, topic.id);
+  assert.deepEqual(kept.finalQuestions.map(q => q.id), ['implicit-first']);
+});
+
+test('Deleting a reordered part protects implicit clips but permits unrelated and own-only videos', async t => {
+  const h = await desktop(t);
+  const clip = { start: 0, end: 2 };
+  const pkg = {
+    format: 'makelaar-lespakket', schemaVersion: 1, id: 'part-clips', moduleId: 'part-clips',
+    moduleTitle: 'Videodelen', title: 'Videodelen', finalQuestions: [{ ...choice('pakket-clip'), clip }],
+    topics: [{ id: 'onderwerp', title: 'Onderwerp', subtopics: [
+      { id: 'primary', title: 'Primaire video', summary: '', videos: [{ id: 'a', title: 'A', file: 'assets/a.mp4' }], questions: [] },
+      { id: 'text', title: 'Tekst met hulpfragment', summary: '', questions: [{ ...choice('deel-clip'), clip }] },
+      { id: 'unrelated', title: 'Andere video', summary: '', video: 'assets/b.mp4', questions: [] },
+      { id: 'own', title: 'Eigen video en vraag', summary: '', video: 'assets/c.mp4', questions: [{ ...choice('eigen-clip'), clip }] }
+    ], examQuestions: [{ ...choice('eind-clip'), clip }] }]
+  };
+  const archive = new AdmZip();
+  archive.addFile('lespakket.json', Buffer.from(JSON.stringify(pkg)));
+  for (const name of ['a', 'b', 'c']) archive.addLocalFile(demoVideo, 'assets', name + '.mp4');
+  const source = path.join(h.root, 'part-clips.zip'); archive.writeZip(source); h.open(source); await h.invoke('import');
+  const target = { packageId: pkg.id, topicId: 'onderwerp' };
+  await h.invoke('moveSubtopic', { ...target, subtopicId: 'primary', direction: 'down' });
+  const manifest = fs.readFileSync(h.manifest(pkg.id), 'utf8');
+  const bytes = fs.readFileSync(path.join(h.root, 'packages', pkg.id, 'assets/a.mp4'));
+  const rejected = await h.raw('deleteSubtopic', [{ ...target, subtopicId: 'primary' }]);
+  assert.equal(rejected.ok, false); assert.match(rejected.error, /hulpfragmenten/);
+  assert.equal(fs.readFileSync(h.manifest(pkg.id), 'utf8'), manifest);
+  assert.deepEqual(fs.readFileSync(path.join(h.root, 'packages', pkg.id, 'assets/a.mp4')), bytes);
+  const withoutExams = JSON.parse(manifest);
+  withoutExams.finalQuestions = [];
+  withoutExams.topics[0].examQuestions = [];
+  fs.writeFileSync(h.manifest(pkg.id), JSON.stringify(withoutExams));
+  const sectionOnly = await h.raw('deleteSubtopic', [{ ...target, subtopicId: 'primary' }]);
+  assert.equal(sectionOnly.ok, false, 'Another part without its own video still depends on the fallback video');
+  assert.match(sectionOnly.error, /hulpfragmenten/);
+  assert.deepEqual(JSON.parse(fs.readFileSync(h.manifest(pkg.id), 'utf8')), withoutExams);
+  await h.invoke('deleteSubtopic', { ...target, subtopicId: 'unrelated' });
+  const current = await h.invoke('deleteSubtopic', { ...target, subtopicId: 'own' });
+  assert.deepEqual(current.packages.find(p => p.id === pkg.id).topics[0].subtopics.map(p => p.id), ['text', 'primary']);
+});
+
+test('A topic videos-only primary permits deleting a subtopic video used only by its own questions', async t => {
+  const h = await desktop(t);
+  const pkg = {
+    format: 'makelaar-lespakket', schemaVersion: 1, id: 'root-clip', moduleId: 'root-clip',
+    moduleTitle: 'Onderwerpvideo', title: 'Onderwerpvideo', finalQuestions: [],
+    topics: [{ id: 'onderwerp', title: 'Onderwerp', videos: [{ id: 'root', title: 'Hoofdvideo', file: 'assets/root.mp4' }],
+      subtopics: [{ id: 'deel', title: 'Eigen video', video: 'assets/deel.mp4', questions: [] },
+        { id: 'tekst', title: 'Alleen tekst', questions: [{ ...choice('fallback'), clip: { start: 0, end: 2 } }] }],
+      examQuestions: [{ ...choice('root-exam'), clip: { start: 0, end: 2 } }] }]
+  };
+  const archive = new AdmZip(); archive.addFile('lespakket.json', Buffer.from(JSON.stringify(pkg)));
+  for (const name of ['root', 'deel']) archive.addLocalFile(demoVideo, 'assets', name + '.mp4');
+  const source = path.join(h.root, 'root-clip.zip'); archive.writeZip(source); h.open(source); await h.invoke('import');
+  const current = await h.invoke('deleteSubtopic', { packageId: pkg.id, topicId: 'onderwerp', subtopicId: 'deel' });
+  const topic = current.packages.find(p => p.id === pkg.id).topics[0];
+  assert.equal(topic.subtopics.length, 1); assert.equal(topic.videos[0].file, 'assets/root.mp4');
+  assert(fs.existsSync(path.join(h.root, 'packages', pkg.id, 'assets/root.mp4')));
+  assert(!fs.existsSync(path.join(h.root, 'packages', pkg.id, 'assets/deel.mp4')));
+});

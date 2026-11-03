@@ -1,5 +1,15 @@
 # Wijzigingen
 
+## 0.4.0
+
+- Modules met onderwerpen en geordende deelonderwerpen.
+- Per deel uitleg, lokale voorbeelden met onderschrift en bron, en opdrachten.
+- Voortgang per deel en doorstappen naar het volgende deel.
+- Onderwerpseindtoets na het afronden van alle delen.
+- Delen aanmaken, bewerken, herordenen en verwijderen.
+- Onderwerpen met bevestiging verwijderen zonder andere onderwerpen of lege modules te verliezen.
+- Bestaande lessen, vragen, media en back-ups blijven ondersteund.
+
 ## 0.3.1
 
 - Een vaste, lichtere groene basis voor alle pagina’s en tabbladen.

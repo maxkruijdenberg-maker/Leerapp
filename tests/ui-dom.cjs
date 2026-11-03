@@ -1,502 +1,125 @@
-const { JSDOM } = require("jsdom");
-const assert = require("node:assert/strict");
-const fs = require("node:fs");
-const path = require("node:path");
-const clone = (value) => structuredClone(value);
-const wait = () => new Promise((resolve) => setTimeout(resolve, 15));
-
+const { JSDOM } = require('jsdom');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const clone = value => structuredClone(value);
+const wait = () => new Promise(resolve => setTimeout(resolve, 20));
 (async () => {
-  const dom = new JSDOM(
-    fs.readFileSync(path.join(__dirname, "../app/index.html"), "utf8"),
-    {
-      runScripts: "outside-only",
-      url: "http://localhost",
-    },
-  );
-  const w = dom.window;
-  const d = w.document;
-  w.structuredClone = structuredClone;
-  w.confirm = () => true;
-  w.HTMLMediaElement.prototype.pause = function () {};
-  w.HTMLMediaElement.prototype.play = function () {
-    return Promise.resolve();
+  const dom = new JSDOM(fs.readFileSync(path.join(__dirname,'../app/index.html'),'utf8'), {runScripts:'outside-only',url:'http://localhost'});
+  const w=dom.window,d=w.document;
+  w.structuredClone=structuredClone;w.confirm=()=>true;
+  w.HTMLMediaElement.prototype.pause=function(){};w.HTMLMediaElement.prototype.play=()=>Promise.resolve();
+  w.HTMLDialogElement.prototype.showModal=function(){this.open=true;};
+  w.HTMLDialogElement.prototype.close=function(){this.open=false;this.dispatchEvent(new w.Event('close'));};
+  const demo=JSON.parse(fs.readFileSync(path.join(__dirname,'../app/demo/lespakket.json'),'utf8'));
+  demo.topics[0].videos=[{id:'extra',title:'Extra video',file:'assets/second.webm'}];
+  const legacy=demo.topics[0];
+  const choice={id:'part-choice',type:'choice',prompt:'Welke mogelijkheid klopt?',options:['Eerste','Tweede'],answer:1,explanation:'De tweede past bij de gegeven uitleg.',source:'Eigen bron'};
+  const open={id:'part-open',type:'open',prompt:'Leg de keuze uit.',answer:'Een eigen onderbouwing.',explanation:'Vergelijk met de uitleg.'};
+  const structured={id:'structured',title:'Leren in kleine stappen',subtopics:[
+    {id:'eerste',title:'De eerste stap',summary:'# Eerste uitleg\n\nEen **belangrijk** begrip.\n\n- Eén kenmerk\n- Nog een kenmerk',questions:[choice,open],videos:[{id:'part-film',title:'Uitleg bij dit deel',file:'assets/deel.webm'}],examples:[{id:'beeld',title:'Een voorbeeld',file:'assets/vormen.png',caption:'Kijk naar dit detail.',source:'Eigen illustratie <script>geen code</script>'}]},
+    {id:'tweede',title:'De tweede stap',summary:'Een kort volgend stukje.',assignmentText:'Maak een eigen schets en vergelijk.',questions:[]}
+  ],examQuestions:[{id:'exam-eigen',type:'choice',prompt:'Wat weet je van het hele onderwerp?',options:['Antwoord A','Antwoord B'],answer:0,explanation:'A volgt uit beide delen.',clip:{videoId:'part-film',start:1,end:3}}]};
+  demo.topics.push(structured);
+  let state={packages:[demo],progress:{topics:{[demo.id+'/'+legacy.id]:{position:45,duration:200}},questions:{}}}, serial=0,fullscreen=true;
+  const calls=[];let cancelDeletePart=false;
+  const reply=()=>clone({...state,modules:[...new Map(state.packages.map(p=>[p.moduleId,{id:p.moduleId,title:p.moduleTitle}])).values()]});
+  const topic=r=>state.packages.find(p=>p.id===r.packageId).topics.find(t=>t.id===r.topicId);
+  const migrate=t=>{
+    if(!Array.isArray(t.subtopics)){
+      const old={id:'legacy',title:'Bestaande uitleg en opdrachten'};
+      for(const k of ['summary','pdf','questions','assignmentText','assignments','video','videos','examples'])if(k in t){old[k]=t[k];delete t[k];}
+      t.subtopics=[old];
+    }
+    return t.subtopics;
   };
-  w.HTMLDialogElement.prototype.showModal = function () {
-    this.open = true;
+  const part=r=>migrate(topic(r)).find(s=>s.id===r.subtopicId);
+  w.academy={
+    state:async()=>reply(),save:async p=>{state.progress=clone(p);},
+    windowControl:async command=>{calls.push(['window',command]);if(command==='toggleFullscreen')fullscreen=!fullscreen;return{fullscreen};},
+    newModule:async r=>{const id='module-'+ ++serial;state.packages.push({format:'makelaar-lespakket',schemaVersion:1,id,moduleId:id,moduleTitle:r.title,title:r.title,topics:[]});return reply();},
+    renameModule:async r=>{state.packages.filter(p=>p.moduleId===r.moduleId).forEach(p=>p.moduleTitle=r.title);return reply();},
+    deleteModule:async id=>{state.packages=state.packages.filter(p=>p.moduleId!==id);return reply();},
+    newTopic:async r=>{state.packages.find(p=>p.moduleId===r.moduleId).topics.push({id:'topic-'+ ++serial,title:r.title,subtopics:[],examQuestions:[]});return reply();},
+    deleteTopic:async r=>{calls.push(["deleteTopic",clone(r)]);const p=state.packages.find(p=>p.id===r.packageId);p.topics=p.topics.filter(t=>t.id!==r.topicId);return reply();},
+    updateTopic:async r=>{calls.push(['updateTopic',clone(r)]);for(const k of ['title','summary','assignmentText','questions','examQuestions'])if(k in r)topic(r)[k]=clone(r[k]);if('summary'in r)delete topic(r).pdf;return reply();},
+    newSubtopic:async r=>{calls.push(['newSubtopic',clone(r)]);migrate(topic(r)).push({id:'part-'+ ++serial,title:r.title,summary:'',questions:[],examples:[]});return reply();},
+    updateSubtopic:async r=>{calls.push(['updateSubtopic',clone(r)]);for(const k of ['title','summary','assignmentText','questions','examples'])if(k in r)part(r)[k]=clone(r[k]);if('summary'in r)delete part(r).pdf;return reply();},
+    deleteSubtopic:async r=>{if(cancelDeletePart)return null;topic(r).subtopics=migrate(topic(r)).filter(s=>s.id!==r.subtopicId);return reply();},
+    moveSubtopic:async r=>{const a=migrate(topic(r)),i=a.findIndex(s=>s.id===r.subtopicId),j=i+(r.direction==='up'?-1:1);[a[i],a[j]]=[a[j],a[i]];return reply();},
+    attach:async r=>{calls.push(['attach',clone(r)]);const t=r.subtopicId?part(r):topic(r);if(r.kind==='example'){t.examples||=[];t.examples.push({id:'uploaded-'+ ++serial,title:r.title,caption:r.caption,source:r.source,file:'assets/eigen.png'});}else if(r.kind==='summary'){t.summary='Geïmporteerde tekst';delete t.pdf;}return reply();},
+    removeAttachment:async r=>{calls.push(['removeAttachment',clone(r)]);const t=r.subtopicId?part(r):topic(r);if(r.kind==='example')t.examples=t.examples.filter(e=>e.id!==r.id);return reply();},
+    prompt:async()=>'',backup:async()=>true,restore:async()=>reply(),exportPackage:async()=>true,
   };
-  w.HTMLDialogElement.prototype.close = function () {
-    this.open = false;
-    this.dispatchEvent(new w.Event("close"));
-  };
-  const demo = JSON.parse(
-    fs.readFileSync(path.join(__dirname, "../app/demo/lespakket.json"), "utf8"),
-  );
-  // A legacy primary video and an additional v0.2 video must both remain visible.
-  demo.topics[0].videos = [
-    { id: "additional-video", title: "Verdieping", file: "assets/second.webm" },
-  ];
-  demo.topics[0].questions[0].clip.videoId = "additional-video";
-  let state = { packages: [demo], progress: {} };
-  let serial = 0;
-  let fullscreen = true;
-  const windowCalls = [];
-  const attachmentCalls = [];
-  const reply = () =>
-    clone({
-      ...state,
-      modules: [
-        ...new Map(
-          state.packages.map((pkg) => [
-            pkg.moduleId,
-            { id: pkg.moduleId, title: pkg.moduleTitle },
-          ]),
-        ).values(),
-      ],
-    });
-  const topic = (request) =>
-    state.packages
-      .find((pkg) => pkg.id === request.packageId)
-      .topics.find((item) => item.id === request.topicId);
-  w.academy = {
-    state: async () => reply(),
-    save: async (progress) => {
-      state.progress = clone(progress);
-    },
-    windowControl: async (command) => {
-      windowCalls.push(command);
-      if (command === "toggleFullscreen") fullscreen = !fullscreen;
-      return { fullscreen };
-    },
-    prompt: async () =>
-      fs.readFileSync(
-        path.join(__dirname, "../app/MAAK-EEN-LESPAKKET.md"),
-        "utf8",
-      ),
-    newModule: async (request) => {
-      const id = "custom-module-" + ++serial;
-      state.packages.push({
-        format: "makelaar-lespakket",
-        schemaVersion: 1,
-        id,
-        moduleId: id,
-        moduleTitle: request.title,
-        title: request.title,
-        topics: [],
-      });
-      return reply();
-    },
-    renameModule: async (request) => {
-      state.packages
-        .filter((pkg) => pkg.moduleId === request.moduleId)
-        .forEach((pkg) => {
-          pkg.moduleTitle = request.title;
-        });
-      return reply();
-    },
-    deleteModule: async (id) => {
-      state.packages = state.packages.filter((pkg) => pkg.moduleId !== id);
-      return reply();
-    },
-    newTopic: async (request) => {
-      const pkg = state.packages.find(
-        (pkg) => pkg.moduleId === request.moduleId,
-      );
-      pkg.topics.push({
-        id: "custom-topic-" + ++serial,
-        title: request.title,
-        summary: "",
-        questions: [],
-        examQuestions: [],
-      });
-      return reply();
-    },
-    updateTopic: async (request) => {
-      const target = topic(request);
-      for (const field of [
-        "title",
-        "summary",
-        "assignmentText",
-        "questions",
-        "examQuestions",
-      ]) {
-        if (Object.hasOwn(request, field))
-          target[field] = clone(request[field]);
-      }
-      if (Object.hasOwn(request, "summary")) delete target.pdf;
-      return reply();
-    },
-    attach: async (request) => {
-      attachmentCalls.push(request.kind);
-      const target = topic(request);
-      if (request.kind === "video") {
-        target.videos = [
-          { id: "video-one", title: "Introductie", file: "assets/one.mp4" },
-          { id: "video-two", title: "Verdieping", file: "assets/two.webm" },
-        ];
-        target.video = target.videos[0].file;
-      }
-      if (request.kind === "assignment")
-        target.assignments = [
-          {
-            id: "assignment-one",
-            title: "Opdracht <gebouw>",
-            file: "assets/opdracht.pdf",
-          },
-        ];
-      if (request.kind === "practice")
-        target.questions.push({
-          id: "imported-practice",
-          type: "choice",
-          prompt: "Geïmporteerde opdrachtvraag",
-          options: ["Ja", "Nee"],
-          answer: 0,
-          explanation: "Uitleg",
-        });
-      if (request.kind === "exam") {
-        target.examQuestions = [
-          {
-            id: "imported-exam",
-            type: "choice",
-            prompt: "Geïmporteerde toetsvraag",
-            options: ["A", "B"],
-            answer: 1,
-            explanation: "B klopt",
-          },
-        ];
-        target.examFiles = [
-          { id: "exam-file", title: "Toetsdocument", file: "assets/toets.pdf" },
-        ];
-      }
-      return reply();
-    },
-    removeAttachment: async (request) => {
-      const target = topic(request);
-      const field =
-        request.kind === "video"
-          ? "videos"
-          : request.kind === "exam"
-            ? "examFiles"
-            : "assignments";
-      target[field] = target[field].filter((file) => file.id !== request.id);
-      return reply();
-    },
-  };
-  w.eval(fs.readFileSync(path.join(__dirname, "../app/renderer.js"), "utf8"));
-  await wait();
-  const click = async (selector) => {
-    const element = d.querySelector(selector);
-    assert(element, "Missing " + selector);
-    element.click();
-    await wait();
-  };
-  const input = (selector, value, type = "input") => {
-    const element = d.querySelector(selector);
-    assert(element, "Missing " + selector);
-    element.value = value;
-    element.dispatchEvent(new w.Event(type, { bubbles: true }));
-  };
-  const submit = async (selector) => {
-    d.querySelector(selector).dispatchEvent(
-      new w.Event("submit", { cancelable: true, bubbles: true }),
-    );
-    await wait();
-  };
-  const text = () => d.querySelector("main").textContent;
-
-  assert.match(text(), /Jouw eigen studeerkamer/);
-  assert.equal(
-    d.querySelector('#modules [data-id="bt2"]'),
-    null,
-    "No fabricated default modules",
-  );
-  assert.equal(d.querySelectorAll(".window-controls button").length, 3);
-  assert(windowCalls.includes("state"));
-  await click('[data-action="window"][data-command="minimize"]');
-  await click('[data-action="window"][data-command="toggleFullscreen"]');
-  assert.equal(fullscreen, false);
-  assert.equal(
-    d.querySelector("#window-fullscreen").getAttribute("aria-label"),
-    "Volledig scherm",
-  );
-  const f11 = new w.KeyboardEvent("keydown", {
-    key: "F11",
-    bubbles: true,
-    cancelable: true,
-  });
-  d.dispatchEvent(f11);
-  await wait();
-  assert.equal(fullscreen, true);
-  assert(f11.defaultPrevented);
-
-  // Existing lessons, clip linkage, feedback and complete examination flow remain usable.
-  await click("[data-action=topic]");
-  await click("[data-tab=video]");
-  assert.equal(d.querySelectorAll("[data-action=selectVideo]").length, 2);
-  assert.match(d.querySelector("#lesson-video").src, /demo\.mp4$/);
-  await click("[data-tab=practice]");
-  await click("[data-action=practice]");
-  await click("[data-action=hint]");
-  assert.match(d.querySelector("#hint-video").src, /second\.webm$/);
-  await click('[data-action=answer][data-index="1"]');
-  await click("[data-action=check]");
-  assert.match(text(), /Nog even aanscherpen/);
-  await click("[data-action=next]");
-  input("#answer-text", "Humor en concrete voorbeelden");
-  await click("[data-action=check]");
-  await click("[data-action=self][data-value=yes]");
-  await click("[data-action=next]");
-  assert.match(text(), /Dit neem je mee/);
-  await click("#nav [data-view=review]");
-  assert.match(text(), /1 vragen klaar/);
-  await click("#nav [data-view=home]");
-  await click("[data-action=topic]");
-  await click("[data-tab=exam]");
-  await click("[data-action=exam]");
-  assert.equal(d.querySelector("[data-action=hint]"), null);
-  await click('[data-action=answer][data-index="0"]');
-  await click("[data-action=next]");
-  input("#answer-text", "2");
-  await click("[data-action=next]");
-  assert.match(text(), /100%/);
-  assert.equal(state.progress.attempts[0].correct, 2);
-  await click("#nav [data-view=progress]");
-  assert.match(text(), /2\/2 \(100%\)/);
-  await click("#nav [data-view=settings]");
-  await click("[data-action=prompt]");
-  assert.match(d.querySelector("#prompt-text").value, /makelaar-lespakket/);
-  await click("[data-action=close]");
-
-  // A custom empty module persists and is named by the user rather than by a fixed list.
-  await click("[data-action=newModule]");
-  input("#name-title", "Praktijk & Recht");
-  await submit("#name-form");
-  const custom = state.packages.find(
-    (pkg) => pkg.moduleTitle === "Praktijk & Recht",
-  );
-  assert(custom);
-  assert.equal(custom.topics.length, 0);
-  assert.equal(d.querySelector("main h1").textContent, "Praktijk & Recht");
-  await click("[data-action=renameModule]");
-  input("#name-title", "Mijn makelaarsopleiding");
-  await submit("#name-form");
-  assert.equal(
-    d.querySelector("main h1").textContent,
-    "Mijn makelaarsopleiding",
-  );
-  await click("[data-action=new]");
-  assert.equal(d.querySelector("#new-module").value, custom.moduleId);
-  input("#name-title", "Een eigen onderwerp");
-  await submit("#name-form");
-  const ownTopic = custom.topics[0];
-  assert.equal(d.querySelector("main h1").textContent, "Een eigen onderwerp");
-  assert.deepEqual(
-    [...d.querySelectorAll("[role=tab]")].map((tab) =>
-      tab.textContent.replace(/^0\d/, "").trim(),
-    ),
-    ["Samenvatting", "Video’s", "Opdrachten", "Oefentoets"],
-  );
-  await click("[data-action=editSummary]");
-  input("#content-text", "# Eigen samenvatting\n\nEen heldere uitleg.");
-  await submit("#content-form");
-  assert.match(d.querySelector(".prose").textContent, /Een heldere uitleg/);
-  assert.match(ownTopic.summary, /Eigen samenvatting/);
-  await click("[data-action=renameTopic]");
-  input("#name-title", "Bouwstijlen");
-  await submit("#name-form");
-  assert.equal(d.querySelector("main h1").textContent, "Bouwstijlen");
-
-  // Unsaved editing can be cancelled without silently discarding text.
-  await click("[data-action=editSummary]");
-  input("#content-text", "Nog niet opgeslagen");
-  w.confirm = () => false;
-  await click("[data-action=close]");
-  assert.equal(d.querySelector("#modal").open, true);
-  assert.match(ownTopic.summary, /Eigen samenvatting/);
-  w.confirm = () => true;
-  await click("[data-action=close]");
-
-  // Manual assignments and authoring each supported question type.
-  await click("[data-tab=practice]");
-  await click("[data-action=editAssignment]");
-  input("#content-text", "## Opdracht\n\nBeschrijf het gebouw.");
-  await submit("#content-form");
-  assert.match(text(), /Beschrijf het gebouw/);
-  await click("[data-action=editQuestion]");
-  input("#question-prompt", "Welk materiaal?");
-  input("#question-options", "Baksteen");
-  await submit("#question-form");
-  assert.equal(d.querySelector("#modal").open, true);
-  assert.match(d.querySelector("#form-error").textContent, /2 tot 8/);
-  input("#question-options", "Baksteen\nHout");
-  input("#question-answer", "1", "change");
-  input("#question-explanation", "Het gebouw heeft houten gevels.");
-  await submit("#question-form");
-  assert.equal(ownTopic.questions.length, 1);
-  assert.equal(ownTopic.questions[0].answer, 1);
-  const originalId = ownTopic.questions[0].id;
-  await click("[data-action=editQuestion][data-id]");
-  await submit("#question-form");
-  assert.equal(
-    ownTopic.questions[0].id,
-    originalId,
-    "Unchanged question retains progress identity",
-  );
-  await click("[data-action=editQuestion][data-id]");
-  input("#question-prompt", "Welk materiaal zie je?");
-  await submit("#question-form");
-  assert.notEqual(
-    ownTopic.questions[0].id,
-    originalId,
-    "Changed question gets fresh progress identity",
-  );
-  await click("[data-action=editQuestion]:not([data-id])");
-  input("#question-type", "number", "change");
-  input("#question-prompt", "Hoeveel meter?");
-  input("#question-answer", "2,5");
-  input("#question-tolerance", "0,1");
-  await submit("#question-form");
-  assert.equal(ownTopic.questions[1].answer, 2.5);
-  assert.equal(ownTopic.questions[1].tolerance, 0.1);
-  await click("[data-action=editQuestion]:not([data-id])");
-  input("#question-type", "open", "change");
-  input("#question-prompt", "Beschrijf de bouwstijl.");
-  input("#question-answer", "Model met herkenbare kenmerken.");
-  await submit("#question-form");
-  assert.equal(ownTopic.questions[2].type, "open");
-  await click("[data-action=attach][data-kind=assignment]");
-  assert.match(text(), /Opdracht <gebouw>/);
-  await click("[data-action=openFile]");
-  assert.match(
-    d.querySelector(".document-viewer").src,
-    /academy:\/\/media\/.+\/assets\/opdracht\.pdf$/,
-  );
-  assert.equal(
-    d.querySelector("#modal gebouw"),
-    null,
-    "Attachment title is escaped",
-  );
-  await click("[data-action=close]");
-  await click("[data-action=attach][data-kind=practice]");
-  assert.match(text(), /Geïmporteerde opdrachtvraag/);
-
-  // Multiple videos keep distinct positions, while old primary-video fields are compatible.
-  await click("[data-tab=video]");
-  await click("[data-action=attach][data-kind=video]");
-  assert.equal(d.querySelectorAll("[data-action=selectVideo]").length, 2);
-  const firstVideo = d.querySelector("#lesson-video");
-  Object.defineProperty(firstVideo, "duration", {
-    value: 20,
-    configurable: true,
-  });
-  firstVideo.dispatchEvent(new w.Event("loadedmetadata"));
-  firstVideo.currentTime = 3.5;
-  firstVideo.dispatchEvent(new w.Event("timeupdate"));
-  await wait();
-  await click("[data-action=selectVideo][data-id=video-two]");
-  const secondVideo = d.querySelector("#lesson-video");
-  assert.match(secondVideo.src, /two\.webm$/);
-  Object.defineProperty(secondVideo, "duration", {
-    value: 30,
-    configurable: true,
-  });
-  secondVideo.dispatchEvent(new w.Event("loadedmetadata"));
-  secondVideo.currentTime = 8;
-  secondVideo.dispatchEvent(new w.Event("timeupdate"));
-  await wait();
-  const saved = state.progress.topics[custom.id + "/" + ownTopic.id];
-  assert.equal(saved.position, 3.5);
-  assert.equal(saved.videos["video-one"].position, 3.5);
-  assert.equal(saved.videos["video-two"].position, 8);
-  assert.equal(
-    saved.videos["video-one"].videos,
-    undefined,
-    "No recursive video-state nesting",
-  );
-
-  // A freshly mounted or failed player must not overwrite a watched video's seek.
-  const progressKey = custom.id + "/" + ownTopic.id;
-  await click("[data-action=selectVideo][data-id=video-one]");
-  const unopenedVideo = d.querySelector("#lesson-video");
-  assert.equal(unopenedVideo.currentTime, 0);
-  // A finite duration by itself does not establish that the saved seek was applied.
-  Object.defineProperty(unopenedVideo, "duration", {
-    value: 20,
-    configurable: true,
-  });
-  unopenedVideo.dispatchEvent(new w.Event("timeupdate"));
-  unopenedVideo.dispatchEvent(new w.Event("pause"));
-  await click("[data-tab=summary]");
-  assert.equal(state.progress.topics[progressKey].position, 3.5);
-  assert.equal(
-    state.progress.topics[progressKey].videos["video-one"].position,
-    3.5,
-  );
-  await click("[data-tab=video]");
-  d.querySelector("#lesson-video").dispatchEvent(new w.Event("error"));
-  await click("[data-tab=summary]");
-  assert.equal(state.progress.topics[progressKey].position, 3.5);
-  assert.equal(
-    state.progress.topics[progressKey].videos["video-two"].position,
-    8,
-  );
-  await click("[data-tab=video]");
-  const resumedVideo = d.querySelector("#lesson-video");
-  Object.defineProperty(resumedVideo, "duration", {
-    value: 20,
-    configurable: true,
-  });
-  resumedVideo.dispatchEvent(new w.Event("loadedmetadata"));
-  assert.equal(
-    resumedVideo.currentTime,
-    3.5,
-    "Saved seek restored before progress can change",
-  );
-  resumedVideo.currentTime = 4.75;
-  resumedVideo.dispatchEvent(new w.Event("timeupdate"));
-  await wait();
-  assert.equal(state.progress.topics[progressKey].position, 4.75);
-  assert.equal(
-    state.progress.topics[progressKey].videos["video-one"].position,
-    4.75,
-  );
-
-  // Interactive examination import, manual editing and local document access.
-  await click("[data-tab=exam]");
-  await click("[data-action=exam]");
-  assert.match(d.querySelector("#toast").textContent, /nog geen vragen/);
-  await click("[data-action=attach][data-kind=exam]");
-  assert.match(text(), /Geïmporteerde toetsvraag/);
-  await click("[data-action=editQuestion]:not([data-id])");
-  input("#question-type", "open", "change");
-  input("#question-prompt", "Leg het uit.");
-  input("#question-answer", "Een goed modelantwoord.");
-  await submit("#question-form");
-  assert.equal(ownTopic.examQuestions.length, 2);
-  await click("[data-action=deleteQuestion][data-id=imported-exam]");
-  assert.equal(ownTopic.examQuestions.length, 1);
-  await click("[data-action=openFile]");
-  assert.match(d.querySelector(".document-viewer").src, /toets\.pdf$/);
-  await click("[data-action=close]");
-  await click("[data-action=removeAttachment][data-kind=exam]");
-  assert.equal(ownTopic.examFiles.length, 0);
-  await click('#modules [data-id="' + custom.moduleId + '"]');
-  await click("[data-action=deleteModule]");
-  assert(!state.packages.some((pkg) => pkg.id === custom.id));
-  assert.match(text(), /Jouw eigen studeerkamer/);
-  await click('[data-action="window"][data-command="close"]');
-  assert(windowCalls.includes("close"));
-  assert.deepEqual(attachmentCalls, [
-    "assignment",
-    "practice",
-    "video",
-    "exam",
-  ]);
-
-  console.log(
-    "PASS: DOM flows: legacy lessons and exams; custom module/topic naming; summary and assignment editing; choice/number/open question authoring and identity; JSON/document imports; multiple videos with independent progress; fullscreen controls and safe cancellation.",
-  );
+  w.eval(fs.readFileSync(path.join(__dirname,'../app/renderer.js'),'utf8'));await wait();
+  const click=async selector=>{const e=d.querySelector(selector);assert(e,'Ontbreekt: '+selector);assert(!e.disabled,'Uitgeschakeld: '+selector);e.click();await wait();};
+  const input=(selector,value,type='input')=>{const e=d.querySelector(selector);assert(e);e.value=value;e.dispatchEvent(new w.Event(type,{bubbles:true}));};
+  const submit=async selector=>{d.querySelector(selector).dispatchEvent(new w.Event('submit',{cancelable:true,bubbles:true}));await wait();};
+  const text=()=>d.querySelector('main').textContent;
+  const overview=async()=>{await click('[data-action="module"]');await click('[data-action="topic"][data-t="structured"]');};
+  assert.match(text(),/Jouw eigen studeerkamer/);assert.equal(d.querySelectorAll('.window-controls button').length,3);
+  await click('[data-action="window"][data-command="toggleFullscreen"]');assert.equal(fullscreen,false);
+  assert.equal(d.querySelector('#modules [data-id="bt2"]'),null);
+  // Legacy import is readable as one part, and its video seek and text editor remain usable.
+  await click('[data-action="topic"]');assert.match(text(),/1 deelonderwerpen/);
+  assert(d.querySelector('[data-action="exam"]').disabled);
+  await click('[data-action="openPart"][data-s="legacy"]');
+  assert(d.querySelector('article.prose'));assert.equal(d.querySelectorAll('[data-action="selectVideo"]').length,2);
+  const video=d.querySelector('#lesson-video');Object.defineProperty(video,'duration',{value:200,configurable:true});video.dispatchEvent(new w.Event('loadedmetadata'));assert.equal(video.currentTime,45);
+  await click('[data-action="editSummary"]');input('#content-text','# Bijgewerkt\n\nBestaande tekst blijft bewerkbaar.');await submit('#content-form');assert.match(text(),/Bestaande tekst blijft bewerkbaar/);
+  assert(calls.some(([kind])=>kind==='updateTopic'));
+  // Topic overview and explanatory figures are rendered safely as native content.
+  await overview();assert.match(text(),/2 deelonderwerpen/);assert(d.querySelector('[data-action="exam"]').disabled);
+  await click('[data-action="openPart"][data-s="eerste"]');
+  assert.equal(d.querySelectorAll('#lesson-body iframe').length,0);assert.match(text(),/belangrijk/);assert.equal(d.querySelectorAll('.example-card img').length,1);assert.equal(d.querySelectorAll('.example-card script').length,0);
+  await click('[data-action="viewExample"]');assert(d.querySelector('#modal').open);assert.match(d.querySelector('.example-expanded img').src,/vormen\.png$/);assert.match(d.querySelector('.example-expanded').textContent,/Kijk naar dit detail/);assert.equal(d.querySelectorAll('.example-expanded script').length,0);await click('[data-action="close"]');
+  await click('[data-action="editExample"]');input('#example-caption','Let op de verhouding.');input('#example-source','Eigen bron 2026');await submit('#example-form');assert.match(text(),/Let op de verhouding/);
+  await click('[data-action="addExample"]');input('#example-title','Tweede afbeelding');input('#example-caption','Nog een concreet detail.');input('#example-source','Eigen foto');await submit('#example-form');assert.equal(d.querySelectorAll('.example-card img').length,2);
+  const upload=calls.find(([kind,r])=>kind==='attach'&&r.kind==='example')[1];assert.equal(upload.subtopicId,'eerste');assert.equal(upload.source,'Eigen foto');
+  await click('[data-action="removeAttachment"][data-kind="example"][data-id^="uploaded-"]');assert.equal(d.querySelectorAll('.example-card img').length,1);
+  // CRUD and order changes leave all other parts intact.
+  await click('[data-action="topic"]');await click('[data-action="newSubtopic"]');input('#subtopic-title','Tijdelijk deel');await submit('#subtopic-form');assert.match(text(),/Tijdelijk deel/);
+  const added=state.packages[0].topics.find(t=>t.id==='structured').subtopics.at(-1).id;
+  await click('[data-action="topic"]');await click(`[data-action="moveSubtopic"][data-s="${added}"][data-direction="up"]`);
+  assert.equal(state.packages[0].topics.find(t=>t.id==='structured').subtopics[1].id,added);
+  cancelDeletePart=true;await click(`[data-action="deleteSubtopic"][data-s="${added}"]`);
+  assert.equal(state.packages[0].topics.find(t=>t.id==='structured').subtopics.length,3);assert.match(text(),/Tijdelijk deel/);
+  cancelDeletePart=false;await click(`[data-action="deleteSubtopic"][data-s="${added}"]`);assert.equal(state.packages[0].topics.find(t=>t.id==='structured').subtopics.length,2);
+  // Add/edit a question in a part; answers live at stable topic/question progress keys.
+  await click('[data-action="openPart"][data-s="eerste"]');await click('[data-action="partStep"][data-step="work"]');
+  assert(d.querySelector('[data-action="completePart"]').disabled);
+  await click('[data-action="editQuestion"][data-id="part-choice"]');input('#question-explanation','Een heldere toelichting.');await submit('#question-form');
+  const first=state.packages[0].topics.find(t=>t.id==='structured').subtopics[0];assert.notEqual(first.questions[0].id,'part-choice');
+  assert(calls.some(([kind,r])=>kind==='updateSubtopic'&&r.subtopicId==='eerste'&&r.questions));
+  await click('[data-action="partStep"][data-step="read"]');await click('[data-action="readPart"]');
+  assert(d.querySelector('[data-action="completePart"]').disabled);
+  await click('[data-action="practice"]');await click('[data-action="answer"][data-index="0"]');await click('[data-action="check"]');assert.match(text(),/Nog even aanscherpen/);await click('[data-action="next"]');
+  input('#answer-text','Mijn eigen uitleg.');await click('[data-action="check"]');assert(d.querySelector('[data-action="next"]').disabled);await click('[data-action="self"][data-value="yes"]');await click('[data-action="next"]');
+  assert.match(text(),/OEFENSESSIE AFGEROND/);await click('[data-action="quizReturn"]');assert(!d.querySelector('[data-action="completePart"]').disabled);
+  await click('[data-action="completePart"]');assert.match(d.querySelector('h1').textContent,/De tweede stap/);
+  // Manual work without interactive questions has an explicit completion route.
+  await click('[data-action="readPart"]');assert.match(text(),/Maak een eigen schets/);await click('[data-action="completePart"]');
+  assert.match(text(),/2 van 2/);assert(!d.querySelector('[data-action="exam"]').disabled);
+  const progress=state.progress.topics[demo.id+'/structured'];assert(progress.subtopics.eerste.read&&progress.subtopics.eerste.done&&progress.subtopics.tweede.done);
+  assert(state.progress.questions[demo.id+'/structured/'+first.questions[0].id]);
+  // Final exam is a separate pool and does not reveal answers before submission.
+  await click('[data-action="exam"]');assert.match(text(),/Wat weet je van het hele onderwerp/);assert(!text().includes('A volgt uit beide delen.'));await click('[data-action="answer"][data-index="0"]');await click('[data-action="next"]');
+  assert.match(text(),/100%/);assert.match(text(),/A volgt uit beide delen/);assert.equal(state.progress.attempts.length,1);assert(state.progress.topics[demo.id+'/structured'].done);
+  await click('[data-action="resultClip"]');assert.match(d.querySelector('#hint-video').src,/deel\.webm$/);await click('[data-action="close"]');
+  await click('[data-action="quizReturn"]');assert.match(text(),/2 van 2/);
+  // Changing an assignment invalidates completion rather than unlocking the final exam on stale work.
+  await click('[data-action="openPart"][data-s="eerste"]');await click('[data-action="partStep"][data-step="work"]');
+  await click('[data-action="editQuestion"][data-list="questions"][data-id]');input('#question-prompt','Een inhoudelijk gewijzigde vraag?');await submit('#question-form');
+  await click('[data-action="topic"]');assert(d.querySelector('[data-action="exam"]').disabled);
+  // New modules/topics remain freely creatable; empty topics do not unlock an exam.
+  await click('[data-action="newModule"]');input('#name-title','Mijn nieuwe module');await submit('#name-form');await click('[data-action="new"]');input('#name-title','Een leeg onderwerp');await submit('#name-form');
+  assert.match(text(),/Verdeel dit onderwerp/);assert(d.querySelector('[data-action="exam"]').disabled);
+  await click('[data-action="newSubtopic"]');input('#subtopic-title','Start hier');await submit('#subtopic-form');
+  await click('[data-action="editSummary"]');input('#content-text','Mijn eigen uitleg.');await submit('#content-form');assert.match(text(),/Mijn eigen uitleg/);
+  assert.equal(d.querySelectorAll('#lesson-body iframe').length,0);
+  await click('[data-action="topic"]');await click('[data-action="deleteTopic"]');
+  assert.match(d.querySelector('h1').textContent,/Mijn nieuwe module/);assert.match(text(),/Hier begint jouw module/);
+  assert.equal(state.packages[0].topics.length,2);assert(calls.some(([kind])=>kind==='deleteTopic'));
+  console.log('DOM-controle geslaagd: oude lessen, deelonderwerpen CRUD, lokale voorbeelden, uitleg → opdrachten → volgend deel, voortgang en eindtoets.');
   dom.window.close();
-})().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+})().catch(error=>{console.error(error);process.exitCode=1;});

@@ -1286,3 +1286,33 @@ dialog .form-actions {
   border-top: 1px solid var(--line);
   background: var(--panel);
 }
+
+/* A short reading-and-practice route inside each topic. */
+.learning-route { display: grid; gap: 12px; }
+.part-row { align-items: center; }
+.part-row .actions { flex-wrap: nowrap; }
+.part-row .more-menu { position: relative; }
+.learning-steps { margin-bottom: 24px; }
+.part-footer { margin-top: 26px; padding: 22px 0; border-top: 1px solid var(--line); }
+.part-footer p { max-width: 760px; color: var(--muted); }
+.examples-section { margin-top: 30px; }
+.example-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
+.example-card { margin: 0; padding: 0; overflow: hidden; }
+.example-card img { display: block; width: 100%; max-height: 380px; object-fit: contain; background: var(--panel-soft); }
+.example-card figcaption { padding: 20px; }
+.example-card h3 { margin: 0 0 10px; }
+.example-card p { margin: 0 0 12px; white-space: pre-line; }
+.example-card small { display: block; overflow-wrap: anywhere; color: var(--muted); }
+.example-card .actions { margin-top: 14px; }
+.final-exam-card { border-color: var(--line); }
+.legacy-media { padding: 20px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; }
+.legacy-media summary { cursor: pointer; color: var(--gold); }
+.legacy-media video { width: 100%; max-height: 500px; margin-top: 12px; }
+@media(max-width: 1100px) { .part-row { align-items: flex-start; } .part-row .actions { flex-wrap: wrap; } }
+
+/* Inspect source photographs without cropping their details. */
+dialog.example-dialog { width: min(1200px, 94vw); overflow-y: auto; }
+.example-expanded { margin: 0; }
+.example-expanded img { display: block; width: 100%; height: auto; max-height: none; }
+.example-expanded figcaption { white-space: pre-line; overflow-wrap: anywhere; }
+.example-expanded small { color: var(--muted); }

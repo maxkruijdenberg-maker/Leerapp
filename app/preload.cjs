@@ -3,7 +3,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 const api = {};
 for (const name of [
   'state', 'save', 'import', 'newModule', 'renameModule', 'deleteModule',
-  'newTopic', 'updateTopic', 'attach', 'removeAttachment', 'windowControl',
+  'newTopic', 'updateTopic', 'deleteTopic', 'newSubtopic', 'updateSubtopic', 'deleteSubtopic', 'moveSubtopic', 'attach', 'removeAttachment', 'windowControl',
   'exportPackage', 'backup', 'restore', 'prompt', 'deletePackage'
 ]) {
   api[name] = async (...args) => {

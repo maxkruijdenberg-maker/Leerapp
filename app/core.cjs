@@ -6,6 +6,26 @@ const ID = /^[a-zA-Z0-9_-]{1,80}$/;
 const MEDIA = /\.(mp4|webm|mp3|wav|png|jpe?g|webp|gif|pdf|txt|md)$/i;
 const VIDEO = /\.(mp4|webm)$/i;
 const DOCUMENT = /\.(pdf|txt|md)$/i;
+const IMAGE = /\.(png|jpe?g|webp|gif)$/i;
+const LEARNING_FIELDS = ['summary', 'assignmentText', 'questions', 'pdf', 'image', 'video', 'videos', 'assignments', 'examples'];
+
+function ensureSubtopics(topic) {
+  if (!Array.isArray(topic.subtopics)) topic.subtopics = [];
+  if (!topic.subtopics.length) {
+    const hasContent = LEARNING_FIELDS.some(field => Array.isArray(topic[field]) ? topic[field].length : topic[field]);
+    if (hasContent) {
+      const first = { id: 'legacy', title: 'Bestaande uitleg en opdrachten' };
+      for (const field of LEARNING_FIELDS) if (Object.hasOwn(topic, field)) first[field] = topic[field];
+      topic.subtopics.push(first);
+    }
+    for (const field of LEARNING_FIELDS) delete topic[field];
+  }
+  return topic.subtopics;
+}
+
+function topicMedia(topic) {
+  return [topic, ...(topic.subtopics ?? [])].flatMap(part => part.videos ?? []);
+}
 
 function assert(ok, message) {
   if (!ok) throw Error(message);
@@ -85,25 +105,46 @@ function validate(pkg) {
       }
     }
   };
+  const content = part => {
+    text(part.summary ?? '');
+    text(part.assignmentText ?? '');
+    asset(part.video, VIDEO);
+    asset(part.pdf, /\.pdf$/i);
+    asset(part.image, IMAGE);
+    attachments(part.videos ?? [], VIDEO);
+    attachments(part.assignments ?? [], DOCUMENT);
+    attachments(part.examples ?? [], IMAGE);
+    for (const example of part.examples ?? []) {
+      text(example.caption ?? '', 10000);
+      text(example.source ?? '', 2000);
+    }
+    questions(part.questions ?? []);
+  };
   for (const topic of pkg.topics) {
     assert(topic && validId(topic.id) && !topicIds.has(topic.id), 'Dubbel of ongeldig onderwerp-ID');
     topicIds.add(topic.id);
     text(topic.title, 200);
-    text(topic.summary ?? '');
-    text(topic.assignmentText ?? '');
-    asset(topic.video, VIDEO);
-    asset(topic.pdf, /\.pdf$/i);
-    asset(topic.image);
-    attachments(topic.videos ?? [], VIDEO);
-    attachments(topic.assignments ?? [], DOCUMENT);
+    content(topic);
     attachments(topic.examFiles ?? [], DOCUMENT);
-    questions(topic.questions ?? []);
     questions(topic.examQuestions ?? []);
-    const allQuestions = [...(topic.questions ?? []), ...(topic.examQuestions ?? [])];
+    if (topic.subtopics !== undefined) {
+      assert(Array.isArray(topic.subtopics) && topic.subtopics.length <= 200, 'Maximaal 200 deelonderwerpen per onderwerp');
+      const ids = new Set();
+      for (const part of topic.subtopics) {
+        assert(part && validId(part.id) && !ids.has(part.id), 'Dubbel of ongeldig deelonderwerp-ID');
+        ids.add(part.id);
+        assert(part.subtopics === undefined, 'Deelonderwerpen kunnen niet verder worden genest');
+        text(part.title, 200);
+        assert(part.title.trim(), 'Naam van deelonderwerp ontbreekt');
+        content(part);
+      }
+    }
+    const allQuestions = [...(topic.questions ?? []), ...(topic.examQuestions ?? []),
+      ...(topic.subtopics ?? []).flatMap(part => part.questions ?? [])];
     assert(new Set(allQuestions.map(question => question.id)).size === allQuestions.length,
-      'Gebruik verschillende IDs voor oefen- en toetsvragen');
+      'Gebruik verschillende IDs voor oefen- en toetsvragen, ook tussen deelonderwerpen');
     for (const question of allQuestions) {
-      if (question.clip?.videoId) assert((topic.videos ?? []).some(video => video.id === question.clip.videoId),
+      if (question.clip?.videoId) assert(topicMedia(topic).some(video => video.id === question.clip.videoId),
         'Hulpfragment verwijst naar een onbekende video');
     }
   }
@@ -114,7 +155,7 @@ function validate(pkg) {
     if (question.topicId) assert(topicIds.has(question.topicId), 'Eindtoets verwijst naar onbekend onderwerp');
     if (question.clip?.videoId) {
       const topic = pkg.topics.find(item => item.id === question.topicId) ?? pkg.topics[0];
-      assert((topic.videos ?? []).some(video => video.id === question.clip.videoId),
+      assert(topicMedia(topic).some(video => video.id === question.clip.videoId),
         'Hulpfragment verwijst naar een onbekende video');
     }
   }
@@ -208,4 +249,4 @@ function grade(question, answer) {
   return Number.isFinite(number) && Math.abs(number - question.answer) <= (question.tolerance || 0);
 }
 
-module.exports = { validate, safeRel, readPackage, installPackage, atomic, grade, ID, MEDIA };
+module.exports = { validate, safeRel, readPackage, installPackage, atomic, grade, ensureSubtopics, ID, MEDIA, IMAGE };
