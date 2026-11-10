@@ -303,7 +303,7 @@ app.whenReady().then(() => {
     const pkg = loadPackage(data.packageId);
     const topic = findTopic(pkg, data.topicId);
     if (Object.hasOwn(data, 'title')) topic.title = title(data.title);
-    for (const field of ['summary', 'assignmentText', 'questions', 'examQuestions']) {
+    for (const field of ['summary', 'assignmentText', 'questions', 'examQuestions', 'examples']) {
       if (Object.hasOwn(data, field)) topic[field] = data[field];
     }
     if (Object.hasOwn(data, 'summary')) delete topic.pdf;

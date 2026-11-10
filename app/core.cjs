@@ -10,6 +10,7 @@ const IMAGE = /\.(png|jpe?g|webp|gif)$/i;
 const LEARNING_FIELDS = ['summary', 'assignmentText', 'questions', 'pdf', 'image', 'video', 'videos', 'assignments', 'examples'];
 
 function ensureSubtopics(topic) {
+  assert(topic.layout !== 'chapter', 'Een hoofdstuk gebruikt geen deelonderwerpen');
   if (!Array.isArray(topic.subtopics)) topic.subtopics = [];
   if (!topic.subtopics.length) {
     const hasContent = LEARNING_FIELDS.some(field => Array.isArray(topic[field]) ? topic[field].length : topic[field]);
@@ -84,6 +85,7 @@ function validate(pkg) {
       text(question.prompt, 5000);
       assert(question.prompt.trim(), 'Een vraag mag niet leeg zijn');
       text(question.explanation ?? '', 10000);
+      text(question.hint ?? '', 10000);
       assert(['choice', 'number', 'open'].includes(question.type), 'Onbekend vraagtype');
       if (question.type === 'choice') {
         assert(Array.isArray(question.options) && question.options.length >= 2 && question.options.length <= 8,
@@ -124,6 +126,8 @@ function validate(pkg) {
     assert(topic && validId(topic.id) && !topicIds.has(topic.id), 'Dubbel of ongeldig onderwerp-ID');
     topicIds.add(topic.id);
     text(topic.title, 200);
+    assert(topic.layout === undefined || topic.layout === 'chapter', 'Onbekende onderwerpindeling');
+    assert(topic.layout !== 'chapter' || !topic.subtopics?.length, 'Een hoofdstuk gebruikt geen deelonderwerpen');
     content(topic);
     attachments(topic.examFiles ?? [], DOCUMENT);
     questions(topic.examQuestions ?? []);

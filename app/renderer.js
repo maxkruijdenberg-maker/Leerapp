@@ -73,7 +73,9 @@ function initProgress() {
 function tp(p, t) {
   return data.progress.topics[key(p, t)] || {};
 }
+function isChapter(t) { return t?.layout === "chapter"; }
 function parts(t) {
+  if (isChapter(t)) return [];
   if (Array.isArray(t.subtopics) && (t.subtopics.length || !(t.summary || t.pdf || t.video || t.videos?.length || t.questions?.length || t.assignmentText || t.assignments?.length || t.examples?.length))) return t.subtopics;
   return [{ ...t, id: "legacy", title: "Uitleg en opdrachten" }];
 }
@@ -89,7 +91,7 @@ function setPartProgress(p, t, part, values) {
   return save();
 }
 function topicDone(p,t) { return tp(p,t).done && allPartsDone(p,t); }
-function allPartsDone(p, t) { return parts(t).length > 0 && parts(t).every((part) => partProgress(p, t, part).done); }
+function allPartsDone(p, t) { return isChapter(t) || parts(t).length > 0 && parts(t).every((part) => partProgress(p, t, part).done); }
 function partAttrs(p, t, part) { return openAttrs(p, t) + (part ? ` data-s="${attr(part.id)}"` : ""); }
 function contentRequest(p, t, part) {
   return { packageId: p.id, topicId: t.id, ...(part ? { subtopicId: part.id } : {}) };
@@ -100,6 +102,11 @@ async function updateContent(p, t, part, values) {
   return api.updateSubtopic(request);
 }
 async function contentEdited(p,t,part,field) {
+  if (isChapter(t)) {
+    data.progress.topics[key(p,t)] = { ...tp(p,t), done:false, ...(field === "summary" ? {read:false} : {}), ...(field === "questions" ? {practiceCompleted:false} : {}) };
+    await save();
+    return;
+  }
   if(!part)return;
   await setPartProgress(p,t,part,{done:false, ...(field==="summary"?{read:false}:{}), ...(field==="questions"?{practiceCompleted:false}:{})});
   data.progress.topics[key(p,t)].done=false;
@@ -235,7 +242,7 @@ function render() {
   };
   document.querySelector("#breadcrumb").textContent =
     route.view === "topic"
-      ? `${moduleById(p?.moduleId)?.title || p?.moduleTitle || ""}  /  ${t?.title || ""}${route.part ? "  /  " + (selectedPart(t)?.title || "") : ""}`
+      ? `${moduleById(p?.moduleId)?.title || p?.moduleTitle || ""}  /  ${t?.title || ""}${route.part && !isChapter(t) ? "  /  " + (selectedPart(t)?.title || "") : ""}`
       : route.view === "module"
         ? moduleById(route.moduleId)?.title || "Module"
         : titles[route.view];
@@ -295,9 +302,9 @@ function modulePage() {
   }
   const packages = data.packages.filter((p) => p.moduleId === module.id);
   const topics = packages.flatMap((p) => p.topics.map((t) => ({ p, t })));
-  main.innerHTML = `<div class="eyebrow">MIJN MODULES</div><div class="page-heading"><div><h1>${esc(module.title)}</h1><p>${topics.length} ${topics.length === 1 ? "onderwerp" : "onderwerpen"} · Uitleg en opdrachten per deelonderwerp, met een eindtoets per onderwerp.</p></div><div class="actions">${btn("＋ Onderwerp toevoegen", "new", `data-module="${attr(module.id)}"`, "primary")}<details class="more-menu"><summary aria-label="Module beheren">•••</summary><div>${btn("Naam wijzigen", "renameModule", `data-module="${attr(module.id)}"`)}${btn("Module verwijderen", "deleteModule", `data-module="${attr(module.id)}"`, "danger")}</div></details></div></div>
+  main.innerHTML = `<div class="eyebrow">MIJN MODULES</div><div class="page-heading"><div><h1>${esc(module.title)}</h1><p>${topics.length} ${topics.length === 1 ? "onderwerp" : "onderwerpen"} · Samenvattingen, opdrachten en toetsen.</p></div><div class="actions">${btn("＋ Onderwerp toevoegen", "new", `data-module="${attr(module.id)}"`, "primary")}<details class="more-menu"><summary aria-label="Module beheren">•••</summary><div>${btn("Naam wijzigen", "renameModule", `data-module="${attr(module.id)}"`)}${btn("Module verwijderen", "deleteModule", `data-module="${attr(module.id)}"`, "danger")}</div></details></div></div>
     <div class="module-rule"></div>
-    ${topics.length ? `<div class="topic-list">${topics.map(({ p, t }, index) => `<article class="topic-row"><span class="topic-index">${topicDone(p, t) ? "✓" : String(index + 1).padStart(2, "0")}</span><div class="body"><h3>${esc(t.title)}</h3><p>${parts(t).length} deelonderwerpen <span>·</span> ${parts(t).reduce((n, part) => n + (part.questions || []).length, 0)} opdrachten <span>·</span> ${(t.examQuestions || []).length} eindtoetsvragen</p></div>${btn('Open onderwerp <svg class="arrow-icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 12 12 4M4 4h8v8"/></svg>', "topic", openAttrs(p, t), "ghost small")}</article>`).join("")}</div>` : empty("Hier begint jouw module.", "Maak een onderwerp aan. Daarin verzamel je alle uitleg, video’s, opdrachten en je oefentoets.")}
+    ${topics.length ? `<div class="topic-list">${topics.map(({ p, t }, index) => `<article class="topic-row"><span class="topic-index">${topicDone(p, t) ? "✓" : String(index + 1).padStart(2, "0")}</span><div class="body"><h3>${esc(t.title)}</h3><p>${isChapter(t) ? "" : parts(t).length + " deelonderwerpen <span>·</span> "}${isChapter(t) ? (t.questions || []).length : parts(t).reduce((n, part) => n + (part.questions || []).length, 0)} opdrachten <span>·</span> ${(t.examQuestions || []).length} eindtoetsvragen</p></div>${btn('Open onderwerp <svg class="arrow-icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 12 12 4M4 4h8v8"/></svg>', "topic", openAttrs(p, t), "ghost small")}</article>`).join("")}</div>` : empty("Hier begint jouw module.", "Maak een onderwerp aan. Daarin verzamel je alle uitleg, video’s, opdrachten en je oefentoets.")}
     <details class="module-tools section-space"><summary>Lespakketten & afsluitende toets</summary><div class="tool-content">${packages.map((p) => `<div class="package-tools"><span>${esc(p.title)}</span><div class="actions">${btn("Exporteren", "export", `data-p="${attr(p.id)}"`, "ghost small")}${p.topics.length ? btn("Afsluitende toets", "finalExam", `data-p="${attr(p.id)}"`, "ghost small") : ""}${p.overviewVideo ? btn("Overzichtsfilm", "overview", `data-p="${attr(p.id)}"`, "ghost small") : ""}${p.topics.length ? btn("Overzichtsfilm toevoegen", "attach", `${openAttrs(p, p.topics[0])} data-kind="overviewVideo"`, "ghost small") : ""}</div></div>`).join("")}</div></details>`;
 }
 function fileList(p, t, files, kind, part) {
@@ -311,18 +318,38 @@ function questionList(p, t, field, part) {
   return `<div class="question-library">${questions.map((q, i) => `<div class="library-row"><span class="topic-index">${String(i + 1).padStart(2, "0")}</span><div class="body"><strong>${esc(q.prompt)}</strong><small>${questionTypes[q.type]}</small></div>${btn("Bewerken", "editQuestion", `${partAttrs(p, t, part)} data-list="${field}" data-id="${attr(q.id)}"`, "ghost small")}${btn("×", "deleteQuestion", `${partAttrs(p, t, part)} data-list="${field}" data-id="${attr(q.id)}" aria-label="Vraag ${i + 1} verwijderen"`, "icon-button danger")}</div>`).join("")}</div>`;
 }
 function examples(p, t, part) {
-  return `<section class="examples-section"><div class="section-heading"><h2>Voorbeelden bij de uitleg</h2>${btn("＋ Afbeelding toevoegen", "addExample", partAttrs(p, t, part), "ghost small")}</div>${part.examples?.length ? `<div class="example-grid">${part.examples.map((example) => `<figure class="card example-card"><img src="${media(p, example.file)}" alt="${attr(example.title)}" loading="lazy"><figcaption><h3>${esc(example.title)}</h3>${example.caption ? `<p>${esc(example.caption)}</p>` : ""}${example.source ? `<small>Bron: ${esc(example.source)}</small>` : ""}<div class="actions">${btn("Vergroten", "viewExample", `${partAttrs(p, t, part)} data-id="${attr(example.id)}"`, "ghost small")}${btn("Bijschrift wijzigen", "editExample", `${partAttrs(p, t, part)} data-id="${attr(example.id)}"`, "text-button small")}${btn("Verwijderen", "removeAttachment", `${partAttrs(p, t, part)} data-kind="example" data-id="${attr(example.id)}"`, "text-button small danger")}</div></figcaption></figure>`).join("")}</div>` : '<p class="quiet">Voeg een eigen afbeelding toe met uitleg en bronvermelding. De afbeelding blijft offline beschikbaar.</p>'}</section>`;
+  const content = part || t;
+  if (!content.examples?.length) return "";
+  return `<section class="examples-section"><div class="section-heading"><h2>Voorbeelden bij de uitleg</h2>${btn("＋ Afbeelding toevoegen", "addExample", partAttrs(p, t, part), "ghost small")}</div><div class="example-grid">${content.examples.map((example) => `<figure class="card example-card"><img src="${media(p, example.file)}" alt="${attr(example.title)}" loading="lazy"><figcaption><h3>${esc(example.title)}</h3>${example.caption ? `<p>${esc(example.caption)}</p>` : ""}${example.source ? `<small>Bron: ${esc(example.source)}</small>` : ""}<div class="actions">${btn("Vergroten", "viewExample", `${partAttrs(p, t, part)} data-id="${attr(example.id)}"`, "ghost small")}${btn("Bijschrift wijzigen", "editExample", `${partAttrs(p, t, part)} data-id="${attr(example.id)}"`, "text-button small")}${btn("Verwijderen", "removeAttachment", `${partAttrs(p, t, part)} data-kind="example" data-id="${attr(example.id)}"`, "text-button small danger")}</div></figcaption></figure>`).join("")}</div></section>`;
 }
 function legacyVideos(p,t,part) {
-  const videos=topicVideos(part), selected=videos.find(v=>v.id===route.videoId)||videos[0];
+  const videos=topicVideos(part || t), selected=videos.find(v=>v.id===route.videoId)||videos[0];
   if(!selected)return "";
   return `<details class="section-space legacy-media"><summary>Bestaande uitlegvideo’s</summary><div class="content-toolbar">${btn("Video toevoegen","attach",`${partAttrs(p,t,part)} data-kind="video"`,"ghost small")}</div><video id="lesson-video" controls preload="metadata" src="${media(p,selected.file)}"></video><div class="actions">${videos.map(v=>`<div>${btn(esc(v.title),"selectVideo",`data-id="${attr(v.id)}"`,"ghost small")}${btn("×","removeAttachment",`${partAttrs(p,t,part)} data-kind="video" data-id="${attr(v.id)}" aria-label="${attr(v.title)} verwijderen"`,"icon-button danger")}</div>`).join("")}</div></details>`;
+}
+function chapterPage(p, t) {
+  delete route.part;
+  delete route.step;
+  const tab = ["summary", "work", "exam"].includes(route.tab) ? route.tab : "summary";
+  route.tab = tab;
+  const a = openAttrs(p,t), state = tp(p,t);
+  main.innerHTML = `<div class="eyebrow">${esc(moduleById(p.moduleId)?.title || p.moduleTitle)} · HOOFDSTUK</div><div class="page-heading"><div><h1>${esc(t.title)}</h1>${p.id === "start-demo" ? '<span class="tag">DEMONSTRATIE</span>' : ""}</div><div class="actions">${btn("Naam wijzigen", "renameTopic", a, "text-button small")}${btn("Onderwerp verwijderen", "deleteTopic", a, "text-button small danger")}</div></div><div class="tabs" role="tablist" aria-label="Onderdelen van dit hoofdstuk">${[["summary","Samenvatting"],["work","Opdrachten"],["exam","Toets"]].map(([id,label])=>`<button data-action="tab" data-tab="${id}" role="tab" aria-selected="${tab === id}" class="${tab === id ? "active" : ""}">${label}</button>`).join("")}</div><section id="lesson-body"></section>`;
+  const body = document.querySelector("#lesson-body");
+  if (tab === "exam") { renderTopicExam(body,p,t); return; }
+  if (tab === "summary") {
+    body.innerHTML = `<div class="content-toolbar"><span class="quiet">Lees de samenvatting van het hele hoofdstuk.</span><div class="actions">${btn("Tekst schrijven", "editSummary", a, "ghost small")}${btn("↑ Tekstbestand uploaden", "attach", `${a} data-kind="summary"`, "ghost small")}<details class="more-menu"><summary aria-label="Hoofdstuk beheren">Meer</summary><div>${btn("＋ Afbeelding toevoegen", "addExample", a, "text-button small")}${btn("Video toevoegen", "attach", `${a} data-kind="video"`, "text-button small")}</div></details></div></div>${t.pdf ? `<iframe class="pdf" title="Samenvatting van ${attr(t.title)}" src="${media(p,t.pdf)}"></iframe>` : t.summary ? `<article class="card prose">${markdown(t.summary)}</article>` : empty("De samenvatting begint hier.", "Schrijf tekst of upload een tekstbestand voor dit hoofdstuk.")}${examples(p,t)}${legacyVideos(p,t)}<div class="part-footer">${btn("Naar de opdrachten →", "readChapter", a, "primary")}</div>`;
+    const video = topicVideos(t).find(v=>v.id===route.videoId) || topicVideos(t)[0];
+    if (video) wireVideo(p,t,video);
+    return;
+  }
+  body.innerHTML = `<div class="content-toolbar"><span class="quiet">Oefen met de samenvatting van het hele hoofdstuk.</span><div class="actions">${btn("Opdrachttekst schrijven", "editAssignment", a, "ghost small")}${btn("↑ Opdracht uploaden", "attach", `${a} data-kind="assignment"`, "ghost small")}</div></div>${t.assignmentText ? `<article class="card prose">${markdown(t.assignmentText)}</article>` : ""}${fileList(p,t,t.assignments,"assignment")}<section class="card question-section"><h2>Opdrachten bij ${esc(t.title)}</h2>${t.questions?.length ? btn("Maak de opdrachten →", "practice", a, "primary") : '<p>Voeg vragen, opdrachttekst of een werkblad toe voor dit hoofdstuk.</p>'}<div class="actions section-space">${btn("＋ Vraag maken", "editQuestion", `${a} data-list="questions"`, "ghost small")}${btn("Vragen importeren", "attach", `${a} data-kind="practice"`, "text-button small")}</div>${questionList(p,t,"questions")}</section><div class="part-footer"><p>${state.done ? "Dit hoofdstuk is afgerond. Je kunt het blijven herhalen." : "Klaar met het hoofdstuk? Je kunt het als afgerond markeren of naar de toets gaan."}</p><div class="actions">${btn(state.done ? "Markeer als niet afgerond" : "Hoofdstuk afronden", "done", a, "ghost")}${btn("Naar de toets →", "tab", 'data-tab="exam"', "primary")}</div></div>`;
 }
 function topicPage() {
   const { p, t } = chosen();
   if (!p || !t) { go({ view: "home" }); return; }
   data.progress.last = key(p, t);
   save();
+  if (isChapter(t)) { chapterPage(p, t); return; }
   const items = parts(t), part = selectedPart(t), complete = items.filter((item) => partProgress(p, t, item).done).length;
   if (route.part && !part) { delete route.part; delete route.step; }
   const a = openAttrs(p, t);
@@ -330,14 +357,15 @@ function topicPage() {
   const body = document.querySelector("#lesson-body");
   if (route.tab === "exam" && !part) { renderTopicExam(body, p, t); return; }
   if (!part) {
-    body.innerHTML = `${items.length ? `<div class="learning-route">${items.map((item, index) => { const state = partProgress(p,t,item); return `<article class="topic-row part-row"><span class="topic-index">${state.done ? "✓" : String(index + 1).padStart(2,"0")}</span><div class="body"><h3>${esc(item.title)}</h3><p>${state.done ? "Afgerond" : state.read ? "Uitleg gelezen" : "Begin met de uitleg"} · ${(item.questions || []).length} opdrachten · ${(item.examples || []).length} voorbeelden</p></div><div class="actions">${btn(state.done ? "Herhalen" : "Open deel →", "openPart", partAttrs(p,t,item), "primary small")}<details class="more-menu"><summary aria-label="${attr(item.title)} beheren">•••</summary><div>${btn("Omhoog", "moveSubtopic", `${partAttrs(p,t,item)} data-direction="up" ${index === 0 ? "disabled" : ""}`, "text-button small")}${btn("Omlaag", "moveSubtopic", `${partAttrs(p,t,item)} data-direction="down" ${index === items.length-1 ? "disabled" : ""}`, "text-button small")}${btn("Verwijderen", "deleteSubtopic", partAttrs(p,t,item), "text-button small danger")}</div></details></div></article>`; }).join("")}</div>` : empty("Verdeel dit onderwerp in behapbare stukken.", "Maak een deelonderwerp met uitleg, voorbeelden en opdrachten.", btn("Eerste deelonderwerp maken", "newSubtopic", a, "primary"))}<section class="card final-exam-card section-space"><div class="eyebrow">NA HET LAATSTE DEEL</div><h2>Eindtoets · ${esc(t.title)}</h2><p>${allPartsDone(p,t) ? "Je hebt alle delen afgerond. Controleer nu wat je van het hele onderwerp beheerst." : "Lees ieder deel en rond de bijbehorende opdrachten af. Daarna kun je de eindtoets starten."}</p><p>${t.examQuestions?.length || 0} vragen · ${p.examMinutes ? p.examMinutes + " minuten" : "Geen tijdslimiet"}</p><div class="actions">${btn("Start eindtoets →", "exam", `${a} ${!allPartsDone(p,t) ? "disabled" : ""}`, "primary")}${btn("Toets bekijken en beheren", "manageExam", a, "ghost small")}</div></section>`;
+    body.innerHTML = `${items.length ? `<div class="learning-route">${items.map((item, index) => { const state = partProgress(p,t,item); return `<article class="topic-row part-row"><span class="topic-index">${state.done ? "✓" : String(index + 1).padStart(2,"0")}</span><div class="body"><h3>${esc(item.title)}</h3><p>${state.done ? "Afgerond" : state.read ? "Uitleg gelezen" : "Begin met de uitleg"} · ${(item.questions || []).length} opdrachten${item.examples?.length ? ` · ${item.examples.length} ${item.examples.length === 1 ? "voorbeeld" : "voorbeelden"}` : ""}</p></div><div class="actions">${btn(state.done ? "Herhalen" : "Open deel →", "openPart", partAttrs(p,t,item), "primary small")}<details class="more-menu"><summary aria-label="${attr(item.title)} beheren">•••</summary><div>${btn("Omhoog", "moveSubtopic", `${partAttrs(p,t,item)} data-direction="up" ${index === 0 ? "disabled" : ""}`, "text-button small")}${btn("Omlaag", "moveSubtopic", `${partAttrs(p,t,item)} data-direction="down" ${index === items.length-1 ? "disabled" : ""}`, "text-button small")}${btn("Verwijderen", "deleteSubtopic", partAttrs(p,t,item), "text-button small danger")}</div></details></div></article>`; }).join("")}</div>` : empty("Verdeel dit onderwerp in behapbare stukken.", "Maak een deelonderwerp met uitleg, voorbeelden en opdrachten.", btn("Eerste deelonderwerp maken", "newSubtopic", a, "primary"))}<section class="card final-exam-card section-space"><div class="eyebrow">NA HET LAATSTE DEEL</div><h2>Eindtoets · ${esc(t.title)}</h2><p>${allPartsDone(p,t) ? "Je hebt alle delen afgerond. Controleer nu wat je van het hele onderwerp beheerst." : "Lees ieder deel en rond de bijbehorende opdrachten af. Daarna kun je de eindtoets starten."}</p><p>${t.examQuestions?.length || 0} vragen · ${p.examMinutes ? p.examMinutes + " minuten" : "Geen tijdslimiet"}</p><div class="actions">${btn("Start eindtoets →", "exam", `${a} ${!allPartsDone(p,t) ? "disabled" : ""}`, "primary")}${btn("Toets bekijken en beheren", "manageExam", a, "ghost small")}</div></section>`;
     return;
   }
   const step = route.step || "read", state = partProgress(p,t,part), pa = partAttrs(p,t,part);
-  body.innerHTML = `<div class="tabs learning-steps" role="tablist" aria-label="Stappen in dit deel"><button data-action="partStep" data-step="read" role="tab" aria-selected="${step === "read"}" class="${step === "read" ? "active" : ""}"><span class="tab-number">01</span>Uitleg & voorbeelden ${state.read ? "✓" : ""}</button><button data-action="partStep" data-step="work" role="tab" aria-selected="${step === "work"}" class="${step === "work" ? "active" : ""}"><span class="tab-number">02</span>Opdrachten ${state.done ? "✓" : ""}</button></div><div id="part-content"></div>`;
+  const hasExamples = Boolean(part.examples?.length);
+  body.innerHTML = `<div class="tabs learning-steps" role="tablist" aria-label="Stappen in dit deel"><button data-action="partStep" data-step="read" role="tab" aria-selected="${step === "read"}" class="${step === "read" ? "active" : ""}"><span class="tab-number">01</span>${hasExamples ? "Uitleg & voorbeelden" : "Uitleg"} ${state.read ? "✓" : ""}</button><button data-action="partStep" data-step="work" role="tab" aria-selected="${step === "work"}" class="${step === "work" ? "active" : ""}"><span class="tab-number">02</span>Opdrachten ${state.done ? "✓" : ""}</button></div><div id="part-content"></div>`;
   const content = document.querySelector("#part-content");
   if (step === "read") {
-    content.innerHTML = `<div class="content-toolbar"><span class="quiet">Lees rustig en bekijk de voorbeelden.</span><div class="actions">${btn("Tekst schrijven", "editSummary", pa, "ghost small")}${btn("↑ Tekstbestand uploaden", "attach", `${pa} data-kind="summary"`, "ghost small")}</div></div>${part.pdf ? `<iframe class="pdf" title="Bestaande samenvatting van ${attr(part.title)}" src="${media(p,part.pdf)}"></iframe>` : part.summary ? `<article class="card prose">${markdown(part.summary)}</article>` : empty("De uitleg begint hier.", "Schrijf tekst of upload een tekstbestand voor dit deel.")}${examples(p,t,part)}${legacyVideos(p,t,part)}<div class="part-footer">${btn("Uitleg gelezen · naar de opdrachten →", "readPart", pa, "primary")}</div>`;
+    content.innerHTML = `<div class="content-toolbar"><span class="quiet">${hasExamples ? "Lees rustig en bekijk de voorbeelden." : "Lees de uitleg."}</span><div class="actions">${btn("Tekst schrijven", "editSummary", pa, "ghost small")}${btn("↑ Tekstbestand uploaden", "attach", `${pa} data-kind="summary"`, "ghost small")}${!hasExamples ? `<details class="more-menu"><summary aria-label="Les beheren">Meer</summary><div>${btn("＋ Afbeelding toevoegen", "addExample", pa, "text-button small")}</div></details>` : ""}</div></div>${part.pdf ? `<iframe class="pdf" title="Bestaande samenvatting van ${attr(part.title)}" src="${media(p,part.pdf)}"></iframe>` : part.summary ? `<article class="card prose">${markdown(part.summary)}</article>` : empty("De uitleg begint hier.", "Schrijf tekst of upload een tekstbestand voor dit deel.")}${examples(p,t,part)}${legacyVideos(p,t,part)}<div class="part-footer">${btn("Uitleg gelezen · naar de opdrachten →", "readPart", pa, "primary")}</div>`;
     const video=topicVideos(part).find(v=>v.id===route.videoId)||topicVideos(part)[0];
     if(video)wireVideo(p,t,video,part);
   } else {
@@ -346,7 +374,7 @@ function topicPage() {
   }
 }
 function renderTopicExam(body, p, t) {
-  body.innerHTML = `${btn("← Naar de deelonderwerpen", "topic", openAttrs(p,t), "ghost small")}<div class="content-toolbar"><h2>Eindtoets · ${esc(t.title)}</h2>${btn("↑ Toetsbestand uploaden", "attach", `${openAttrs(p,t)} data-kind="exam"`, "ghost small")}</div>${fileList(p,t,t.examFiles,"exam")}<section class="card question-section"><p>${allPartsDone(p,t) ? "Alle delen zijn afgerond." : "Je kunt de toets hier beheren. Starten kan nadat de deelonderwerpen zijn afgerond."} Antwoorden en uitleg verschijnen na het inleveren.</p><p>${t.examQuestions?.length || 0} vragen · ${p.examMinutes ? p.examMinutes + " minuten" : "Geen tijdslimiet"}</p>${btn("Start eindtoets →", "exam", `${openAttrs(p,t)} ${!allPartsDone(p,t) ? "disabled" : ""}`, "primary")}<div class="actions section-space">${btn("＋ Toetsvraag maken", "editQuestion", `${openAttrs(p,t)} data-list="examQuestions"`, "ghost small")}</div>${questionList(p,t,"examQuestions")}</section>`;
+  body.innerHTML = `${isChapter(t) ? "" : btn("← Naar de deelonderwerpen", "topic", openAttrs(p,t), "ghost small")}<div class="content-toolbar"><h2>${isChapter(t) ? "Toets" : "Eindtoets"} · ${esc(t.title)}</h2>${btn("↑ Toetsbestand uploaden", "attach", `${openAttrs(p,t)} data-kind="exam"`, "ghost small")}</div>${fileList(p,t,t.examFiles,"exam")}<section class="card question-section"><p>${isChapter(t) ? "Toets jezelf over het hele hoofdstuk." : allPartsDone(p,t) ? "Alle delen zijn afgerond." : "Je kunt de toets hier beheren. Starten kan nadat de deelonderwerpen zijn afgerond."} Antwoorden en uitleg verschijnen na het inleveren.</p><p>${t.examQuestions?.length || 0} vragen · ${p.examMinutes ? p.examMinutes + " minuten" : "Geen tijdslimiet"}</p>${btn("Start eindtoets →", "exam", `${openAttrs(p,t)} ${!allPartsDone(p,t) ? "disabled" : ""}`, "primary")}<div class="actions section-space">${btn("＋ Toetsvraag maken", "editQuestion", `${openAttrs(p,t)} data-list="examQuestions"`, "ghost small")}</div>${questionList(p,t,"examQuestions")}</section>`;
 }
 function subtopicEditor(kind, part) {
   const {p,t}=chosen();
@@ -366,7 +394,7 @@ function exampleEditor(part, example) {
     const fields={title:document.querySelector("#example-title").value.trim(),caption:document.querySelector("#example-caption").value.trim(),source:document.querySelector("#example-source").value.trim()};
     if(!fields.title)throw Error("Vul een titel in.");
     let result;
-    if(example) result=await api.updateSubtopic({...contentRequest(p,t,part),examples:part.examples.map(x=>x.id===example.id?{...x,...fields}:x)});
+    if(example) result=await updateContent(p,t,part,{examples:(part || t).examples.map(x=>x.id===example.id?{...x,...fields}:x)});
     else result=await api.attach({...contentRequest(p,t,part),kind:"example",...fields});
     if(result){acceptState(result);await contentEdited(p,t,part,"summary");}topicPage();
   });
@@ -429,7 +457,7 @@ function wireVideo(p, t, video, content = t) {
   element.addEventListener("ended", update);
 }
 function settings() {
-  main.innerHTML = `<div class="eyebrow">JOUW LEEROMGEVING</div><h1>Goed geregeld.</h1><p>Bewaar je studie en houd je materiaal bij de hand.</p><div class="settings-grid"><section class="card"><span class="section-index">01</span><h2>Je studie bewaren</h2><p>Neem lessen, media en voortgang mee in één volledige back-up.</p><div class="actions">${btn("Back-up maken", "backup", "", "primary")}${btn("Terugzetten", "restore", "", "ghost")}</div></section><section class="card"><span class="section-index">02</span><h2>Je eigen lesmateriaal</h2><p>Modules en onderwerpen maak je zelf aan. Gebruik de algemene briefing om op basis van je bronnen een lespakket te laten maken.</p>${btn("Instructies voor ChatGPT", "prompt", "", "ghost")}</section><section class="card"><span class="section-index">03</span><h2>Alles samen oefenen</h2><p>Gebruik de toetsvragen en overzichtsfilms uit al je eigen modules.</p><div class="actions">${btn("Eindtoets alle modules", "courseExam", "", "ghost")}${btn("Overzichtsfilms", "courseOverview", "", "ghost")}</div></section></div><p class="version-note">Makelaar Academie 0.4.0 · Lokaal & offline · Geen account nodig</p>`;
+  main.innerHTML = `<div class="eyebrow">JOUW LEEROMGEVING</div><h1>Goed geregeld.</h1><p>Bewaar je studie en houd je materiaal bij de hand.</p><div class="settings-grid"><section class="card"><span class="section-index">01</span><h2>Je studie bewaren</h2><p>Neem lessen, media en voortgang mee in één volledige back-up.</p><div class="actions">${btn("Back-up maken", "backup", "", "primary")}${btn("Terugzetten", "restore", "", "ghost")}</div></section><section class="card"><span class="section-index">02</span><h2>Je eigen lesmateriaal</h2><p>Modules en onderwerpen maak je zelf aan. Gebruik de algemene briefing om op basis van je bronnen een lespakket te laten maken.</p>${btn("Instructies voor ChatGPT", "prompt", "", "ghost")}</section><section class="card"><span class="section-index">03</span><h2>Alles samen oefenen</h2><p>Gebruik de toetsvragen en overzichtsfilms uit al je eigen modules.</p><div class="actions">${btn("Eindtoets alle modules", "courseExam", "", "ghost")}${btn("Overzichtsfilms", "courseOverview", "", "ghost")}</div></section></div><p class="version-note">Makelaar Academie 0.5.0 · Lokaal & offline · Geen account nodig</p>`;
 }
 
 function progressPage() {
@@ -437,7 +465,7 @@ function progressPage() {
   main.innerHTML = `<div class="eyebrow">ELKE STAP TELT</div><h1>Je ziet jezelf groeien.</h1><p>Je kijkpositie, afgeronde onderwerpen, antwoorden en toetsresultaten blijven bewaard.</p><h2 class="section-space">Per onderwerp</h2>${allTopics()
     .map(({ p, t }) => {
       const s = tp(p, t), done = topicDone(p,t);
-      return `<div class="topic-row"><span class="topic-index">${done ? "✓" : "○"}</span><div class="body"><h3>${esc(t.title)}</h3><p>${esc(p.moduleTitle)} · ${done ? "Afgerond" : "Nog bezig"} · ${parts(t).filter(part=>partProgress(p,t,part).done).length}/${parts(t).length} delen${s.videoDone ? " · Video uitgekeken" : ""}${s.duration ? " · Video " + Math.round(((s.position || 0) / s.duration) * 100) + "% positie" : ""}</p></div>${btn("Verder", "topic", openAttrs(p, t), "small")}</div>`;
+      return `<div class="topic-row"><span class="topic-index">${done ? "✓" : "○"}</span><div class="body"><h3>${esc(t.title)}</h3><p>${esc(p.moduleTitle)} · ${done ? "Afgerond" : "Nog bezig"}${isChapter(t) ? "" : ` · ${parts(t).filter(part=>partProgress(p,t,part).done).length}/${parts(t).length} delen`}${s.videoDone ? " · Video uitgekeken" : ""}${s.duration ? " · Video " + Math.round(((s.position || 0) / s.duration) * 100) + "% positie" : ""}</p></div>${btn("Verder", "topic", openAttrs(p, t), "small")}</div>`;
     })
     .join("")}<h2 class="section-space">Toetsgeschiedenis</h2>${
     a.length
@@ -456,7 +484,7 @@ function progressPage() {
 function reviewList() {
   const items = data.packages.flatMap((p) => [
     ...p.topics.flatMap((t) =>
-      [...parts(t).flatMap(s => (s.questions || []).map(q => ({p,t,s,q}))), ...(t.examQuestions || []).map(q => ({p,t,q}))],
+      [...(isChapter(t) ? (t.questions || []).map(q=>({p,t,q})) : parts(t).flatMap(s => (s.questions || []).map(q => ({p,t,s,q})))), ...(t.examQuestions || []).map(q => ({p,t,q}))],
     ),
     ...(p.finalQuestions || []).map((q) => ({
       p,
@@ -588,6 +616,13 @@ function finishQuiz() {
     const {p,t,s}=quiz.items[0];
     if(s && quiz.items.every((item,i)=>quiz.checked[i] && (item.q.type!=="open" || quiz.self[i]!==undefined))) setPartProgress(p,t,s,{practiceCompleted:true});
   }
+  if (!quiz.exam && quiz.returnRoute?.t && isChapter(quiz.items[0].t)) {
+    const {p,t}=quiz.items[0];
+    if (quiz.items.every((item,i)=>quiz.checked[i] && (item.q.type!=="open" || quiz.self[i]!==undefined))) {
+      data.progress.topics[key(p,t)]={...tp(p,t),practiceCompleted:true};
+      save();
+    }
+  }
   if (quiz.exam && quiz.returnRoute?.t) {
     const {p,t}=quiz.items[0];
     if(allPartsDone(p,t)){data.progress.topics[key(p,t)]={...tp(p,t),done:true};save();}
@@ -604,11 +639,16 @@ function resultPage() {
 function showClip(item, target) {
   const { p, q } = item;
   const file = clipVideo(item);
+  const hint = q.hint || (q.type === "number"
+    ? "Schrijf de gegeven waarden en de gevraagde eenheid op. Bedenk daarna welke berekening ze met elkaar verbindt."
+    : q.type === "choice"
+      ? "Bedenk eerst welk kenmerk de vraag beschrijft. Vergelijk elke mogelijkheid met dat kenmerk en streep af wat niet past."
+      : "Benoem eerst de kernbegrippen uit de vraag. Leg daarna in je eigen woorden uit hoe die met elkaar samenhangen.");
   if (!file || !q.clip) {
-    target.innerHTML = `<div class="note">${esc(q.hint || "Er is nog geen videofragment gekoppeld aan deze vraag. Voeg tijdcodes toe aan het lespakket.")}</div>`;
+    target.innerHTML = `<div class="note">${esc(hint)}</div>`;
     return;
   }
-  target.innerHTML = `<div class="video-wrap section-space"><video id="hint-video" controls src="${media(p, file)}"></video><div class="video-meta">Fragment ${fmt(q.clip.start)}–${fmt(q.clip.end)} · ${esc(q.hint || "Bekijk de uitleg en probeer het opnieuw.")}</div></div>`;
+  target.innerHTML = `<div class="note">${esc(hint)}</div><div class="video-wrap section-space"><video id="hint-video" controls src="${media(p, file)}"></video><div class="video-meta">Fragment ${fmt(q.clip.start)}–${fmt(q.clip.end)}</div></div>`;
   const v = target.querySelector("video");
   v.addEventListener("loadedmetadata", () => {
     if (q.clip.start >= v.duration) {
@@ -756,7 +796,7 @@ function questionEditor(field, questionId) {
   if (questionId && !old) throw Error("Deze vraag bestaat niet meer.");
   const exam = field === "examQuestions";
   dialogBody(
-    `<div class="eyebrow">${esc(t.title)}</div><h2 id="dialog-title">${old ? "Vraag bewerken." : exam ? "Een nieuwe toetsvraag." : "Een nieuwe opdrachtvraag."}</h2><form id="question-form"><div class="form-grid"><div><label for="question-type">Vraagvorm</label><select id="question-type"><option value="choice">Meerkeuze</option><option value="number">Rekenvraag</option><option value="open">Open vraag</option></select></div><div><label for="question-source">Bron (optioneel)</label><input id="question-source" maxlength="1000" value="${attr(old?.source || "")}" placeholder="Boek, hoofdstuk of pagina"></div></div><label for="question-prompt">Vraag</label><textarea id="question-prompt" maxlength="5000" required>${esc(old?.prompt || "")}</textarea><div id="question-fields"></div><label for="question-explanation">Uitleg bij het antwoord</label><textarea id="question-explanation" maxlength="10000">${esc(old?.explanation || "")}</textarea>${old ? "<small>Bij inhoudelijke wijzigingen krijgt de vraag een nieuw ID, zodat oude voortgang niet aan een gewijzigd antwoord wordt gekoppeld.</small>" : ""}${formFooter(old ? "Wijzigingen opslaan" : "Vraag toevoegen")}</form>`,
+    `<div class="eyebrow">${esc(t.title)}</div><h2 id="dialog-title">${old ? "Vraag bewerken." : exam ? "Een nieuwe toetsvraag." : "Een nieuwe opdrachtvraag."}</h2><form id="question-form"><div class="form-grid"><div><label for="question-type">Vraagvorm</label><select id="question-type"><option value="choice">Meerkeuze</option><option value="number">Rekenvraag</option><option value="open">Open vraag</option></select></div><div><label for="question-source">Bron (optioneel)</label><input id="question-source" maxlength="1000" value="${attr(old?.source || "")}" placeholder="Boek, hoofdstuk of pagina"></div></div><label for="question-prompt">Vraag</label><textarea id="question-prompt" maxlength="5000" required>${esc(old?.prompt || "")}</textarea><div id="question-fields"></div><label for="question-hint">Hint bij Help me even (optioneel)</label><textarea id="question-hint" maxlength="10000" placeholder="Geef een denkstap zonder het antwoord te verklappen.">${esc(old?.hint || "")}</textarea><label for="question-explanation">Uitleg bij het antwoord</label><textarea id="question-explanation" maxlength="10000">${esc(old?.explanation || "")}</textarea>${old ? "<small>Bij inhoudelijke wijzigingen krijgt de vraag een nieuw ID, zodat oude voortgang niet aan een gewijzigd antwoord wordt gekoppeld.</small>" : ""}${formFooter(old ? "Wijzigingen opslaan" : "Vraag toevoegen")}</form>`,
   );
   const type = document.querySelector("#question-type");
   type.value = old?.type || "choice";
@@ -799,6 +839,9 @@ function questionEditor(field, questionId) {
       prompt,
       explanation: document.querySelector("#question-explanation").value.trim(),
     };
+    const hint = document.querySelector("#question-hint").value.trim();
+    if (hint) question.hint = hint;
+    else delete question.hint;
     const source = document.querySelector("#question-source").value.trim();
     if (source) question.source = source;
     else delete question.source;
@@ -851,6 +894,7 @@ function questionEditor(field, questionId) {
       previous.explanation ||= "";
       if (old.type === "number") previous.tolerance ??= 0;
       if (!old.source) delete previous.source;
+      if (!old.hint) delete previous.hint;
     }
     delete previous.id;
     question.id =
@@ -912,6 +956,7 @@ async function action(name, element) {
   if (name === "renameSubtopic") return subtopicEditor(name,part);
   if (name === "openPart") return go({view:"topic",p:ds.p,t:ds.t,part:ds.s,step:"read"});
   if (name === "partStep") {pauseMedia();route.step=ds.step;topicPage();return;}
+  if (name === "readChapter") {data.progress.topics[key(p,t)]={...tp(p,t),read:true};await save();route.tab="work";topicPage();return;}
   if (name === "readPart") {await setPartProgress(p,t,part,{read:true});route.step="work";topicPage();return;}
   if (name === "completePart") {
     const state=partProgress(p,t,part), qs=part.questions || [];
@@ -930,14 +975,14 @@ async function action(name, element) {
     return;
   }
   if (name === "viewExample") {
-    const example=part?.examples?.find(item=>item.id===ds.id);
+    const example=(part || t)?.examples?.find(item=>item.id===ds.id);
     if(!example)throw Error("Dit voorbeeld bestaat niet meer.");
     dialogBody(`<h2 id="dialog-title">${esc(example.title)}</h2><figure class="example-expanded"><img src="${media(p,example.file)}" alt="${attr(example.title)}"><figcaption>${example.caption ? `<p>${esc(example.caption)}</p>` : ""}${example.source ? `<small>Bron: ${esc(example.source)}</small>` : ""}</figcaption></figure><div class="form-actions">${btn("Sluiten","close","","ghost")}</div>`);
     modal.classList.add("example-dialog");
     return;
   }
   if (name === "addExample") return exampleEditor(part);
-  if (name === "editExample") return exampleEditor(part,part.examples.find(e=>e.id===ds.id));
+  if (name === "editExample") return exampleEditor(part,(part || t).examples.find(e=>e.id===ds.id));
   if (name === "manageExam") return go({view:"topic",p:p.id,t:t.id,tab:"exam"});
   if (name === "quizReturn") return go(quiz.returnRoute);
   if (name === "window") return controlWindow(ds.command);
@@ -1023,7 +1068,7 @@ async function action(name, element) {
     if (result) {
       acceptState(result);
       render();
-      if(part && ["summary","practice","assignment"].includes(ds.kind)) await contentEdited(p,t,part,ds.kind === "practice" ? "questions" : ds.kind === "summary" ? "summary" : "assignmentText");
+      if((part || isChapter(t)) && ["summary","practice","assignment"].includes(ds.kind)) await contentEdited(p,t,part,ds.kind === "practice" ? "questions" : ds.kind === "summary" ? "summary" : "assignmentText");
       render();
       toast("Toegevoegd en lokaal bewaard.");
     }
@@ -1101,7 +1146,7 @@ async function action(name, element) {
     if(name === "exam" && !allPartsDone(p,t)){toast("Rond eerst alle deelonderwerpen af.");return;}
     const content = part || t;
     const items = name === "exam" ? (t.examQuestions || []).map(q=>({p,t,q})) : (content.questions || []).map(q=>({p,t,s:part,q}));
-    startQuiz(items,name === "exam" ? "Eindtoets · "+t.title : content.title,name === "exam",p.examMinutes || 0,{view:"topic",p:p.id,t:t.id,...(name==="practice" && part?{part:part.id,step:"work"}:{})});
+    startQuiz(items,name === "exam" ? "Eindtoets · "+t.title : content.title,name === "exam",p.examMinutes || 0,{view:"topic",p:p.id,t:t.id,...(isChapter(t)?{tab:name === "practice" ? "work" : "exam"}:name==="practice" && part?{part:part.id,step:"work"}:{})});
     return;
   }
   if (name === "reviewStart") {

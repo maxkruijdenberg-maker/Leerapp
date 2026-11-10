@@ -197,6 +197,73 @@ test('Topics accept authored content, multiple videos, assignment documents and 
   assert.equal(current.packages.find(item => item.id === pkg.id).topics[0].assignments.length, 1);
 });
 
+test('Chapter imports and edits keep summary, assignments and exams at the root through restart and export', async t => {
+  const h = await desktop(t);
+  const created = await moduleAndTopic(h);
+  assert.equal(created.topic.layout, undefined);
+  assert.deepEqual(created.topic.subtopics, []);
+  const pkg = {
+    format: 'makelaar-lespakket', schemaVersion: 1, id: 'chapter-package', moduleId: 'chapter-module',
+    moduleTitle: 'Een module', title: 'Een lespakket', finalQuestions: [], topics: [{
+      id: 'hoofdstuk', title: 'Een hoofdstuk', layout: 'chapter', summary: '# Hele hoofdstuk\n\nEen doorlopende tekst.',
+      questions: [{ ...choice('oefenen'), hint: 'Benoem eerst het begrip in de vraag.' }],
+      examQuestions: [choice('toetsen')]
+    }]
+  };
+  const source = h.write('chapter.json', JSON.stringify(pkg));
+  h.open(source);
+  let current = await h.invoke('import');
+  const target = { packageId: pkg.id, topicId: 'hoofdstuk' };
+  const savedBefore = fs.readFileSync(h.manifest(pkg.id), 'utf8');
+  const rejected = await h.raw('newSubtopic', [{ ...target, title: 'Onbedoeld deel' }]);
+  assert.equal(rejected.ok, false);
+  assert.match(rejected.error, /hoofdstuk.*geen deelonderwerpen/);
+  assert.equal(fs.readFileSync(h.manifest(pkg.id), 'utf8'), savedBefore);
+  await h.invoke('updateTopic', { ...target, assignmentText: 'Gebruik het gehele hoofdstuk.' });
+  h.open(h.write('samenvatting.md', '# Nieuwe samenvatting\n\nNog steeds één hoofdstuk.'));
+  await h.invoke('attach', { ...target, kind: 'summary' });
+  const hint = 'Vergelijk de begrippen zonder alvast een optie te kiezen.';
+  h.open(h.write('chapter-practice.json', JSON.stringify([{ ...choice('nieuw-oefenen'), hint }])));
+  await h.invoke('attach', { ...target, kind: 'practice' });
+  h.open(h.write('chapter-exam.json', JSON.stringify({ examQuestions: [choice('nieuwe-toets')] })));
+  current = await h.invoke('attach', { ...target, kind: 'exam' });
+  let topic = current.packages.find(item => item.id === pkg.id).topics[0];
+  assert.equal(topic.summary, '# Nieuwe samenvatting\n\nNog steeds één hoofdstuk.');
+  assert.equal(topic.assignmentText, 'Gebruik het gehele hoofdstuk.');
+  assert.equal(topic.questions[0].hint, hint);
+  assert.equal(topic.examQuestions[0].id, 'nieuwe-toets');
+  assert.equal(topic.subtopics, undefined);
+  h.open(path.join(demoDirectory, 'assets/vormen.png'));
+  current = await h.invoke('attach', { ...target, kind: 'example', title: 'Een voorbeeld',
+    caption: 'Oorspronkelijk bijschrift.', source: 'Eigen schema.' });
+  topic = current.packages.find(item => item.id === pkg.id).topics[0];
+  const example = topic.examples[0];
+  assert.equal(topic.subtopics, undefined);
+  assert(fs.existsSync(path.join(h.root, 'packages', pkg.id, example.file)));
+  current = await h.invoke('updateTopic', { ...target, examples: [{ ...example, caption: 'Gewijzigd bijschrift.' }] });
+  topic = current.packages.find(item => item.id === pkg.id).topics[0];
+  assert.equal(topic.examples[0].caption, 'Gewijzigd bijschrift.');
+  assert.equal(topic.subtopics, undefined);
+  current = await h.invoke('removeAttachment', { ...target, kind: 'example', id: example.id });
+  topic = current.packages.find(item => item.id === pkg.id).topics[0];
+  assert.deepEqual(topic.examples, []);
+  assert.equal(topic.subtopics, undefined);
+  assert(!fs.existsSync(path.join(h.root, 'packages', pkg.id, example.file)));
+  const key = pkg.id + '/' + topic.id;
+  await h.invoke('save', { topics: { [key]: { read: true, done: true } }, last: key, questions: {} });
+  const restarted = await desktop(t, h.root);
+  current = await restarted.invoke('state');
+  topic = current.packages.find(item => item.id === pkg.id).topics[0];
+  assert.equal(topic.layout, 'chapter');
+  assert.equal(topic.subtopics, undefined);
+  assert.equal(current.progress.topics[key].done, true);
+  assert.equal(current.progress.last, key);
+  const exported = path.join(h.root, 'chapter.lespakket');
+  h.save(exported);
+  await h.invoke('exportPackage', pkg.id);
+  assert.deepEqual(readPackage(exported).p.topics[0], topic);
+});
+
 test('Invalid edits and canceled replacements leave the stored topic and existing files untouched', async t => {
   const h = await desktop(t);
   const { pkg, topic } = await moduleAndTopic(h);

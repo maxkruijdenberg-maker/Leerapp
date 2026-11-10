@@ -1,6 +1,6 @@
-# Mijn persoonlijke leerstijl en lespakket voor Makelaar Academie
+# Een lespakket maken voor Makelaar Academie
 
-Ik studeer Makelaar Wonen, nu Bouwkunde BT1 en BT2. Gebruik de exameninformatie en de foto's van mijn LOI-boek die ik bijvoeg. Vraag om ontbrekende of onleesbare pagina's. Verzin geen exameneisen, bronnen, feiten of antwoorden. Noem bronpagina's per samenvatting en vraag. Maak onderscheid tussen de periode waarin een bouwstijl ontstond en latere heroplevingen. Romeins is niet hetzelfde als romaans.
+Gebruik de lokaal aangeleverde bronstukken en exameninformatie. Vraag om ontbrekende of onleesbare pagina's. Verzin geen exameneisen, bronnen, feiten of antwoorden. Noem bronpagina's per samenvatting en vraag. Dit document is een generiek formaatvoorbeeld; persoonlijke lesinhoud en voorkeuren horen buiten deze openbare repository.
 
 ## Leer- en videobriefing
 
@@ -10,28 +10,30 @@ Video's worden extern gemaakt en als bestand geïmporteerd. Maak een script met 
 
 ## Op te leveren
 
-1. Beknopte, prettig leesbare samenvatting met bronverwijzingen.
-2. Volledig videoscript met scènes, gesproken tekst, visuele aanwijzingen, personagebeschrijving en hoofdstukken. Geschatte script-tijden zijn voorlopig. Pas vraagfragmenten aan op de definitieve gerenderde video.
+1. Eén doorlopende, prettig leesbare samenvatting per hoofdstuk, met bronverwijzingen.
+2. Indien gewenst een videoscript met scènes, gesproken tekst, visuele aanwijzingen, personagebeschrijving en hoofdstukken. Geschatte script-tijden zijn voorlopig. Pas vraagfragmenten aan op de definitieve gerenderde video.
 3. Oefenvragen die bij de stof passen: beeldherkenning, meerkeuze, berekeningen en open vragen met modelantwoord. De app ondersteunt choice, number en open; nog geen drag-and-drop. Gebruik echte beschikbare afbeeldingen met correct brongebruik, geen verzonnen bestandsnamen.
-4. Apart samengestelde proeftoetsvragen per onderwerp, met antwoord en uitleg; daarna eindtoetsvragen over alle onderwerpen en een script voor een globale overzichtsfilm. Stem aantallen, tijd en vraagvorm af op mijn aangeleverde examendocument; vermeld wanneer aansluiting niet kan worden gecontroleerd. Claim geen officiële toets of gegarandeerde examendekking.
+4. Apart samengestelde proeftoetsvragen per hoofdstuk, met antwoord en uitleg; eventueel daarna eindtoetsvragen over alle hoofdstukken en een script voor een globale overzichtsfilm. Stem aantallen, tijd en vraagvorm af op het aangeleverde examendocument; vermeld wanneer aansluiting niet kan worden gecontroleerd. Claim geen officiële toets of gegarandeerde examendekking.
 5. Eén importeerbaar lespakketbestand: ZIP met extensie .lespakket, lespakket.json direct in de hoofdmap en alle gebruikte media in assets/. Geen bestanden van externe URLs tijdens het leren. Houd hetzelfde pakket-ID en onderwerp-ID bij een kleine correctie. Bij vervanging wordt het gehele pakket vervangen: lever dus ook eerdere onderwerpen die behouden moeten blijven mee. Gebruik nieuwe vraag-ID's als de betekenis of antwoordopties veranderen.
 
 ## Bestandsformaat versie 1
 
-JSON met deze structuur (geldige JSON, geen opmerkingen):
+JSON met deze structuur (geldige JSON, geen opmerkingen). Vanaf appversie 0.5 gebruik je `layout: "chapter"` voor één hoofdstuk met een doorlopende samenvatting. `summary`, `questions` en `examQuestions` staan rechtstreeks op het onderwerp. `subtopics` is hierbij niet nodig. De app opent direct op **Samenvatting**, met daarnaast **Opdrachten** en **Toets**. De toets vereist geen afronding van delen.
 
+```json
 {
   "format": "makelaar-lespakket",
   "schemaVersion": 1,
-  "id": "bt1-bouwstijlen",
-  "moduleId": "bt1",
-  "moduleTitle": "Bouwkunde BT1",
-  "title": "Bouwstijlen",
+  "id": "lespakket-1",
+  "moduleId": "module-1",
+  "moduleTitle": "Titel van de module",
+  "title": "Titel van het lespakket",
   "examMinutes": 0,
   "topics": [
     {
       "id": "onderwerp-1",
-      "title": "Titel op basis van mijn bronnen",
+      "title": "Titel van het hoofdstuk",
+      "layout": "chapter",
       "summary": "# Kern\n\nSamenvatting met bronpagina's.\n\n## Onthouden\n\n- Ezelsbruggetje",
       "presenter": "Eigen presentator",
       "questions": [
@@ -42,8 +44,8 @@ JSON met deze structuur (geldige JSON, geen opmerkingen):
           "options": ["Optie A", "Optie B", "Optie C"],
           "answer": 1,
           "explanation": "Waarom B klopt en de andere opties niet.",
-          "hint": "Waar moet ik op letten?",
-          "source": "LOI, hoofdstuk en paginanummer"
+          "hint": "Bepaal eerst welk begrip de vraag toetst en vergelijk dat met de opties.",
+          "source": "Bron, hoofdstuk en paginanummer"
         }
       ],
       "examQuestions": []
@@ -51,10 +53,15 @@ JSON met deze structuur (geldige JSON, geen opmerkingen):
   ],
   "finalQuestions": []
 }
+```
+
+Dit is een structuurvoorbeeld. Vul het met gecontroleerde eigen lesinhoud. Een hoofdstuk met `layout: "chapter"` bewaart de inhoud op het onderwerp zelf, ook bij bewerken en het toevoegen van bestanden of vragen. De app maakt er geen automatisch deelonderwerp van. Onderwerpen die je zelf in de app aanmaakt gebruiken de bestaande indeling met deelonderwerpen; de hoofdstukindeling wordt expliciet in het lespakket gekozen.
 
 IDs: maximaal 80 tekens; alleen letters, cijfers, - en _. Vraag-ID's uniek binnen het onderwerp, ook tussen oefenen en toets. Gebruik eigen examenvragen, niet simpelweg dezelfde oefenvragen als eindtoets.
 
 Voor video: voeg aan het onderwerp "video": "assets/uitleg.mp4" toe, alleen als dit bestand werkelijk is meegeleverd. Voor een PDF: "pdf": "assets/samenvatting.pdf". Voor een afbeelding bij een vraag: "image": "assets/foto.jpg". Voor hulpvideo voeg aan de vraag "clip": {"start": 35, "end": 58} toe: seconden in de definitieve video van dit onderwerp. Laat clip weg als de uiteindelijke timing nog onbekend is. Geen verzonnen timecodes.
+
+Geef een vraag desgewenst een `hint`: een concrete aanwijzing die de leerling zelf verder laat denken, zonder het antwoord of de uitleg prijs te geven. **Help me even** toont deze hint; zonder hint gebruikt de app een algemene aanwijzing. Een modelantwoord staat in `answer` en blijft apart van de hint. Bestaande geldige hulpvideofragmenten blijven bruikbaar. Zonder `clip` is geen videofragment of tijdcode nodig.
 
 Voor een rekenvraag: "type": "number", "answer": 125, "tolerance": 0.01. Vermeld eenheid en afronding in de vraag. Voor open vragen: "type": "open", "answer": "Modelantwoord". Open vragen worden door de leerling zelf beoordeeld; geen AI nodig. Combineer geen answer-index met een teksttype.
 
@@ -64,7 +71,7 @@ Overzichtsfilm: "overviewVideo": "assets/overzicht.mp4" op pakketniveau. Een glo
 
 examMinutes is een niet-negatief getal. 0 is zonder tijdslimiet. Geldt voor de onderwerp- en pakketproeftoets. De toets over alle modules heeft in versie 0.1 geen tijdslimiet.
 
-Media: MP4 (H.264/AAC), WebM, PNG, JPG, WebP, GIF, PDF. Geen HTML, JavaScript of externe verwijzingen in pakketten. Markdown is beperkt tot kopjes, alinea's, lijsten en vetgedrukte tekst. Plaats geen video-verwijzing in JSON totdat het bestand beschikbaar is; ik kan de video later via de app uploaden. Samenvatting, vragen en afbeeldingen kunnen dus al eerder worden geïmporteerd.
+Media: MP4 (H.264/AAC), WebM, PNG, JPG, WebP, GIF, PDF. Geen HTML, JavaScript of externe verwijzingen in pakketten. Markdown is beperkt tot kopjes, alinea's, lijsten en vetgedrukte tekst. Plaats geen video-verwijzing in JSON totdat het bestand beschikbaar is; een video kan later via de app worden toegevoegd. Samenvatting, vragen en afbeeldingen kunnen dus al eerder worden geïmporteerd.
 
 Controleer vóór aflevering: JSON syntaxis, juiste antwoorden, bronverwijzingen, unieke IDs, alle mediabestanden aanwezig, clip-eindtijd na begintijd en binnen videoduur. Lever een korte lijst met nog ontbrekende broninformatie mee buiten het importbestand.
 
@@ -95,14 +102,14 @@ Het oude veld `video` blijft de primaire video voor bestaande hulpfragmenten. Ni
 
 Een los vragenbestand kan een JSON-array zijn, of een object met `questions`. Bij een oefentoets mag het object ook `examQuestions` gebruiken. Het vraagformaat is hetzelfde als hierboven. Verwijs alleen naar media die al in het onderwerp/pakket aanwezig zijn, of importeer een compleet lespakket met media. Gebruik nieuwe vraag-IDs wanneer betekenis of antwoorden veranderen, zodat oude resultaten niet met een andere vraag worden verward.
 
-## Deelonderwerpen vanaf appversie 0.4
+## Bestaande indeling met deelonderwerpen vanaf appversie 0.4
 
-Gebruik `schemaVersion: 1`. Een onderwerp kan een geordende lijst `subtopics` bevatten. Iedere deel-ID is uniek binnen het onderwerp. Gebruik ook unieke vraag-IDs over alle delen en de eindtoets van hetzelfde onderwerp; houd IDs stabiel bij kleine tekstcorrecties.
+Gebruik `schemaVersion: 1`. Een onderwerp kan een geordende lijst `subtopics` bevatten. Deze indeling blijft ondersteund en behoudt de deelroute; gebruik hierbij geen `layout: "chapter"`. Iedere deel-ID is uniek binnen het onderwerp. Gebruik ook unieke vraag-IDs over alle delen en de eindtoets van hetzelfde onderwerp; houd IDs stabiel bij kleine tekstcorrecties.
 
 ```json
 {
   "id": "onderwerp-1",
-  "title": "Mijn onderwerp",
+  "title": "Titel van het onderwerp",
   "subtopics": [
     {
       "id": "deel-1",
@@ -127,6 +134,8 @@ Gebruik `schemaVersion: 1`. Een onderwerp kan een geordende lijst `subtopics` be
 
 Dit voorbeeld bevat een mediaverwijzing: lever `assets/voorbeeld.jpg` daadwerkelijk mee of laat het voorbeeld weg. Voorbeelden gebruiken PNG, JPG/JPEG, WebP of GIF en staan lokaal in het pakket. Maak onderscheid tussen een echte foto en een eigen schematische illustratie; gebruik een gegenereerd beeld niet als bewijs van een bestaand gebouw. Voeg bron en beeldrechten toe waar bekend. De app haalt zelf geen afbeeldingen van internet op.
 
+Afbeeldingen zijn optioneel. Laat `examples` weg of gebruik `examples: []` voor een tekstles. Vanaf appversie 0.5 toont zo’n deel geen leeg voorbeeldvak en heet het eerste tabblad **Uitleg**. Afbeeldingen kunnen later via **Meer** worden toegevoegd.
+
 Plaats de oefenvragen in het betreffende deel en de afzonderlijk samengestelde eindtoetsvragen in `topic.examQuestions`. De app leidt de leerling langs uitleg, opdrachten, volgende deel en daarna de onderwerpseindtoets. Die volgorde is geen automatische controle op officiële examendekking. Open antwoorden worden door de leerling beoordeeld. Een lege eindtoets wordt niet automatisch door AI gevuld.
 
-Deelonderwerpen kunnen bij bestaande lessen ook oudere `pdf`, `video`, `videos` en `assignments`-velden behouden. Bij het toevoegen van het eerste deel aan een oud onderwerp wordt de bestaande leerinhoud onderdeel van het deel met ID `legacy`; de onderwerpseindtoets blijft op onderwerpniveau staan. Vraag-ID's en bestaande vraagvoortgang blijven behouden. Pakket-/cursuseindtoetsen blijven apart van onderwerpseindtoetsen beschikbaar.
+Deelonderwerpen kunnen bij bestaande lessen ook oudere `pdf`, `video`, `videos` en `assignments`-velden behouden. Bij het toevoegen van het eerste deel aan een oud onderwerp zonder `layout: "chapter"` wordt de bestaande leerinhoud onderdeel van het deel met ID `legacy`; de onderwerpseindtoets blijft op onderwerpniveau staan. Vraag-ID's en bestaande vraagvoortgang blijven behouden. Pakket-/cursuseindtoetsen blijven apart van onderwerpseindtoetsen beschikbaar.

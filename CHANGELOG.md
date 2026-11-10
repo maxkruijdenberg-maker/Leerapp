@@ -1,5 +1,16 @@
 # Wijzigingen
 
+## 0.5.0
+
+- Geïmporteerde hoofdstukken met `layout: "chapter"` openen direct met één doorlopende samenvatting en de tabbladen Samenvatting, Opdrachten en Toets.
+- Het lespakketveld `layout: "chapter"` bewaart samenvatting en vragen rechtstreeks op het onderwerp, zonder deelonderwerpen of omzetting naar een legacy-deel.
+- Opdrachten gelden voor het hele hoofdstuk; de hoofdstuktoets blijft bereikbaar zonder afzonderlijke delen af te ronden. Bestaande deelroutes blijven ondersteund.
+- **Help me even** toont de vraaghint of een algemene aanwijzing. Modelantwoorden blijven apart; bestaande hulpvideofragmenten blijven ondersteund.
+- Vraaghints kunnen bij het bewerken van vragen worden ingevuld en behouden.
+- Lessen zonder afbeeldingen tonen alleen uitleg, zonder lege voorbeeldvakken of afbeeldingsprompts.
+- Tabnaam, leesinstructie en deeloverzicht passen zich aan de aanwezige afbeeldingen aan.
+- Afbeeldingen blijven later toe te voegen via **Meer** bij de uitleg; bestaande beeldlessen blijven ondersteund.
+
 ## 0.4.0
 
 - Modules met onderwerpen en geordende deelonderwerpen.

@@ -20,12 +20,17 @@ const wait = () => new Promise(resolve => setTimeout(resolve, 20));
     {id:'eerste',title:'De eerste stap',summary:'# Eerste uitleg\n\nEen **belangrijk** begrip.\n\n- Eén kenmerk\n- Nog een kenmerk',questions:[choice,open],videos:[{id:'part-film',title:'Uitleg bij dit deel',file:'assets/deel.webm'}],examples:[{id:'beeld',title:'Een voorbeeld',file:'assets/vormen.png',caption:'Kijk naar dit detail.',source:'Eigen illustratie <script>geen code</script>'}]},
     {id:'tweede',title:'De tweede stap',summary:'Een kort volgend stukje.',assignmentText:'Maak een eigen schets en vergelijk.',questions:[]}
   ],examQuestions:[{id:'exam-eigen',type:'choice',prompt:'Wat weet je van het hele onderwerp?',options:['Antwoord A','Antwoord B'],answer:0,explanation:'A volgt uit beide delen.',clip:{videoId:'part-film',start:1,end:3}}]};
-  demo.topics.push(structured);
+  const chapter={id:'chapter',layout:'chapter',title:'Eén doorlopend hoofdstuk',summary:'# De kern\n\nEerste samenhangende uitleg.\n\n## Verbanden\n\nDe rest van het hoofdstuk.',questions:[
+    {id:'chapter-open',type:'open',prompt:'Beschrijf het verband.',answer:'VERBORGEN MODELANTWOORD',explanation:'VERBORGEN UITLEG',hint:'Vergelijk oorzaak en gevolg zonder de conclusie al te noemen.'},
+    {id:'chapter-number',type:'number',prompt:'Bereken het gevraagde getal.',answer:7,tolerance:0,explanation:'VERBORGEN REKENUITLEG'}
+  ],examQuestions:[{id:'chapter-exam',type:'choice',prompt:'Een afzonderlijke hoofdstuktoetsvraag?',options:['Ja','Nee'],answer:0,explanation:'De toets behandelt het hele hoofdstuk.'}]};
+  demo.topics.push(structured,chapter);
   let state={packages:[demo],progress:{topics:{[demo.id+'/'+legacy.id]:{position:45,duration:200}},questions:{}}}, serial=0,fullscreen=true;
   const calls=[];let cancelDeletePart=false;
   const reply=()=>clone({...state,modules:[...new Map(state.packages.map(p=>[p.moduleId,{id:p.moduleId,title:p.moduleTitle}])).values()]});
   const topic=r=>state.packages.find(p=>p.id===r.packageId).topics.find(t=>t.id===r.topicId);
   const migrate=t=>{
+    assert.notEqual(t.layout,'chapter','Hoofdstukinhoud mag niet naar een legacy-deel worden omgezet.');
     if(!Array.isArray(t.subtopics)){
       const old={id:'legacy',title:'Bestaande uitleg en opdrachten'};
       for(const k of ['summary','pdf','questions','assignmentText','assignments','video','videos','examples'])if(k in t){old[k]=t[k];delete t[k];}
@@ -42,7 +47,7 @@ const wait = () => new Promise(resolve => setTimeout(resolve, 20));
     deleteModule:async id=>{state.packages=state.packages.filter(p=>p.moduleId!==id);return reply();},
     newTopic:async r=>{state.packages.find(p=>p.moduleId===r.moduleId).topics.push({id:'topic-'+ ++serial,title:r.title,subtopics:[],examQuestions:[]});return reply();},
     deleteTopic:async r=>{calls.push(["deleteTopic",clone(r)]);const p=state.packages.find(p=>p.id===r.packageId);p.topics=p.topics.filter(t=>t.id!==r.topicId);return reply();},
-    updateTopic:async r=>{calls.push(['updateTopic',clone(r)]);for(const k of ['title','summary','assignmentText','questions','examQuestions'])if(k in r)topic(r)[k]=clone(r[k]);if('summary'in r)delete topic(r).pdf;return reply();},
+    updateTopic:async r=>{calls.push(['updateTopic',clone(r)]);for(const k of ['title','summary','assignmentText','questions','examQuestions','examples'])if(k in r)topic(r)[k]=clone(r[k]);if('summary'in r)delete topic(r).pdf;return reply();},
     newSubtopic:async r=>{calls.push(['newSubtopic',clone(r)]);migrate(topic(r)).push({id:'part-'+ ++serial,title:r.title,summary:'',questions:[],examples:[]});return reply();},
     updateSubtopic:async r=>{calls.push(['updateSubtopic',clone(r)]);for(const k of ['title','summary','assignmentText','questions','examples'])if(k in r)part(r)[k]=clone(r[k]);if('summary'in r)delete part(r).pdf;return reply();},
     deleteSubtopic:async r=>{if(cancelDeletePart)return null;topic(r).subtopics=migrate(topic(r)).filter(s=>s.id!==r.subtopicId);return reply();},
@@ -68,10 +73,14 @@ const wait = () => new Promise(resolve => setTimeout(resolve, 20));
   const video=d.querySelector('#lesson-video');Object.defineProperty(video,'duration',{value:200,configurable:true});video.dispatchEvent(new w.Event('loadedmetadata'));assert.equal(video.currentTime,45);
   await click('[data-action="editSummary"]');input('#content-text','# Bijgewerkt\n\nBestaande tekst blijft bewerkbaar.');await submit('#content-form');assert.match(text(),/Bestaande tekst blijft bewerkbaar/);
   assert(calls.some(([kind])=>kind==='updateTopic'));
+  await click('[data-action="partStep"][data-step="work"]');await click('[data-action="practice"]');await click('[data-action="hint"]');
+  assert.match(d.querySelector('#hint-video').src,/demo\.mp4$/);assert.match(d.querySelector('#hint').textContent,/bovenkant van de twee vormen/);
+  const hintVideo=d.querySelector('#hint-video');Object.defineProperty(hintVideo,'duration',{value:20,configurable:true});hintVideo.dispatchEvent(new w.Event('loadedmetadata'));assert.equal(hintVideo.currentTime,2);
   // Topic overview and explanatory figures are rendered safely as native content.
   await overview();assert.match(text(),/2 deelonderwerpen/);assert(d.querySelector('[data-action="exam"]').disabled);
   await click('[data-action="openPart"][data-s="eerste"]');
   assert.equal(d.querySelectorAll('#lesson-body iframe').length,0);assert.match(text(),/belangrijk/);assert.equal(d.querySelectorAll('.example-card img').length,1);assert.equal(d.querySelectorAll('.example-card script').length,0);
+  assert.match(d.querySelector('[data-action="partStep"][data-step="read"]').textContent,/Uitleg & voorbeelden/);
   await click('[data-action="viewExample"]');assert(d.querySelector('#modal').open);assert.match(d.querySelector('.example-expanded img').src,/vormen\.png$/);assert.match(d.querySelector('.example-expanded').textContent,/Kijk naar dit detail/);assert.equal(d.querySelectorAll('.example-expanded script').length,0);await click('[data-action="close"]');
   await click('[data-action="editExample"]');input('#example-caption','Let op de verhouding.');input('#example-source','Eigen bron 2026');await submit('#example-form');assert.match(text(),/Let op de verhouding/);
   await click('[data-action="addExample"]');input('#example-title','Tweede afbeelding');input('#example-caption','Nog een concreet detail.');input('#example-source','Eigen foto');await submit('#example-form');assert.equal(d.querySelectorAll('.example-card img').length,2);
@@ -117,9 +126,68 @@ const wait = () => new Promise(resolve => setTimeout(resolve, 20));
   await click('[data-action="newSubtopic"]');input('#subtopic-title','Start hier');await submit('#subtopic-form');
   await click('[data-action="editSummary"]');input('#content-text','Mijn eigen uitleg.');await submit('#content-form');assert.match(text(),/Mijn eigen uitleg/);
   assert.equal(d.querySelectorAll('#lesson-body iframe').length,0);
-  await click('[data-action="topic"]');await click('[data-action="deleteTopic"]');
+  // Text-only lessons have no empty image area, while images remain editable through More.
+  assert.equal(d.querySelector('.examples-section'),null);
+  assert(!d.querySelector('[data-action="partStep"][data-step="read"]').textContent.includes('voorbeelden'));
+  assert(!text().includes('bekijk de voorbeelden'));assert(!text().includes('Voeg een eigen afbeelding toe'));
+  assert(d.querySelector('.content-toolbar details [data-action="addExample"]'));
+  await click('[data-action="addExample"]');input('#example-title','Een later toegevoegd beeld');await submit('#example-form');
+  assert.equal(d.querySelectorAll('.example-card img').length,1);
+  assert.match(d.querySelector('[data-action="partStep"][data-step="read"]').textContent,/Uitleg & voorbeelden/);
+  await click('[data-action="removeAttachment"][data-kind="example"]');assert.equal(d.querySelector('.examples-section'),null);
+  await click('[data-action="topic"]');assert(!text().includes('0 voorbeelden'));await click('[data-action="deleteTopic"]');
   assert.match(d.querySelector('h1').textContent,/Mijn nieuwe module/);assert.match(text(),/Hier begint jouw module/);
-  assert.equal(state.packages[0].topics.length,2);assert(calls.some(([kind])=>kind==='deleteTopic'));
-  console.log('DOM-controle geslaagd: oude lessen, deelonderwerpen CRUD, lokale voorbeelden, uitleg → opdrachten → volgend deel, voortgang en eindtoets.');
+  assert.equal(state.packages[0].topics.length,3);assert(calls.some(([kind])=>kind==='deleteTopic'));
+  // Chapter imports open on one continuous summary, with no part route or empty gallery.
+  await click('[data-action="module"]');
+  const chapterRow=d.querySelector('[data-action="topic"][data-t="chapter"]').closest('.topic-row');
+  assert.match(chapterRow.textContent,/2 opdrachten/);assert(!chapterRow.textContent.includes('deel'));
+  await click('[data-action="topic"][data-t="chapter"]');
+  assert.deepEqual([...d.querySelectorAll('[role="tab"]')].map(e=>e.textContent),['Samenvatting','Opdrachten','Toets']);
+  assert.equal(d.querySelector('[aria-selected="true"]').textContent,'Samenvatting');
+  assert.equal(d.querySelectorAll('article.prose').length,1);assert.match(text(),/Eerste samenhangende uitleg/);assert.match(text(),/De rest van het hoofdstuk/);
+  assert.equal(d.querySelector('.learning-route'),null);assert.equal(d.querySelector('.examples-section'),null);assert.equal(d.querySelector('.example-grid'),null);
+  assert.equal(d.querySelector('[data-action="openPart"]'),null);assert.equal(d.querySelector('[data-action="newSubtopic"]'),null);
+  assert.equal(d.querySelectorAll('#lesson-body iframe').length,0);assert(!d.querySelector('#breadcrumb').textContent.includes('legacy'));assert(!/Deel [0-9]|deelonderwerp/.test(text()));
+  // The chapter exam is available before reading or practicing, and returns to its tab.
+  await click('[data-action="tab"][data-tab="exam"]');assert(!d.querySelector('[data-action="exam"]').disabled);
+  await click('[data-action="exam"]');assert.match(text(),/afzonderlijke hoofdstuktoetsvraag/);assert.equal(d.querySelector('[data-action="hint"]'),null);
+  await click('[data-action="answer"][data-index="0"]');await click('[data-action="next"]');await click('[data-action="quizReturn"]');
+  assert.equal(d.querySelector('[aria-selected="true"]').textContent,'Toets');assert.match(text(),/Toets · Eén doorlopend hoofdstuk/);
+  await click('[data-action="tab"][data-tab="summary"]');await click('[data-action="editSummary"]');input('#content-text','# Hele hoofdstuk\n\nDe gewijzigde doorlopende samenvatting.');await submit('#content-form');
+  assert.match(text(),/gewijzigde doorlopende samenvatting/);assert.equal(state.progress.topics[demo.id+'/chapter'].done,false);
+  await click('[data-action="attach"][data-kind="summary"]');assert.match(text(),/Geïmporteerde tekst/);
+  assert(calls.some(([kind,r])=>kind==='updateTopic'&&r.topicId==='chapter'&&r.summary));
+  assert(calls.some(([kind,r])=>kind==='attach'&&r.topicId==='chapter'&&r.kind==='summary'&&!r.subtopicId));
+  // Optional pictures also stay on the root and are hidden again when removed.
+  await click('[data-action="addExample"]');input('#example-title','Een optioneel hoofdstukbeeld');await submit('#example-form');
+  assert.equal(d.querySelectorAll('.example-card').length,1);await click('[data-action="editExample"]');input('#example-caption','Een hoofdstukbijschrift.');await submit('#example-form');assert.match(text(),/Een hoofdstukbijschrift/);
+  await click('[data-action="removeAttachment"][data-kind="example"]');assert.equal(d.querySelector('.examples-section'),null);
+  await click('[data-action="readChapter"]');assert.equal(d.querySelector('[aria-selected="true"]').textContent,'Opdrachten');
+  // Saving unchanged questions retains hints, absence of a hint, and stable question IDs.
+  await click('[data-action="editQuestion"][data-id="chapter-open"]');assert.equal(d.querySelector('#question-hint').value,'Vergelijk oorzaak en gevolg zonder de conclusie al te noemen.');await submit('#question-form');
+  let native=state.packages[0].topics.find(t=>t.id==='chapter');assert.equal(native.questions[0].id,'chapter-open');assert.equal(native.questions[0].hint,'Vergelijk oorzaak en gevolg zonder de conclusie al te noemen.');
+  await click('[data-action="editQuestion"][data-id="chapter-number"]');assert.equal(d.querySelector('#question-hint').value,'');await submit('#question-form');
+  native=state.packages[0].topics.find(t=>t.id==='chapter');assert.equal(native.questions[1].id,'chapter-number');assert(!('hint' in native.questions[1]));
+  await click('[data-action="editQuestion"][data-id="chapter-open"]');input('#question-hint','Zoek eerst het verband tussen oorzaak en gevolg.');await submit('#question-form');
+  native=state.packages[0].topics.find(t=>t.id==='chapter');assert.equal(native.questions[0].hint,'Zoek eerst het verband tussen oorzaak en gevolg.');
+  // Help gives a hint without exposing the model answer or explanation. The reveal stays explicit.
+  await click('[data-action="practice"]');await click('[data-action="hint"]');assert.equal(d.querySelector('#hint').textContent,'Zoek eerst het verband tussen oorzaak en gevolg.');
+  assert(!text().includes('VERBORGEN MODELANTWOORD'));assert(!text().includes('VERBORGEN UITLEG'));assert.equal(d.querySelector('#hint-video'),null);
+  input('#answer-text','Mijn eigen verband.');await click('[data-action="check"]');assert.match(text(),/VERBORGEN MODELANTWOORD/);assert.match(text(),/VERBORGEN UITLEG/);
+  await click('[data-action="self"][data-value="no"]');await click('[data-action="next"]');await click('[data-action="hint"]');
+  assert.match(d.querySelector('#hint').textContent,/gegeven waarden/);assert(!/tijdcode|videofragment|VERBORGEN REKENUITLEG/.test(d.querySelector('#hint').textContent));
+  input('#answer-text','7');await click('[data-action="check"]');await click('[data-action="next"]');await click('[data-action="quizReturn"]');
+  assert.equal(d.querySelector('[aria-selected="true"]').textContent,'Opdrachten');assert.match(text(),/Opdrachten bij Eén doorlopend hoofdstuk/);
+  assert.equal(state.progress.topics[demo.id+'/chapter'].practiceCompleted,true);assert.equal(state.progress.topics[demo.id+'/chapter'].subtopics,undefined);
+  assert.equal(native.subtopics,undefined);assert(!calls.some(([kind,r])=>kind==='updateSubtopic'&&r.topicId==='chapter'));
+  await click('[data-action="done"]');assert.equal(state.progress.topics[demo.id+'/chapter'].done,true);
+  await click('[data-action="tab"][data-tab="exam"]');assert(!d.querySelector('[data-action="exam"]').disabled);
+  await click('[data-action="nav"][data-view="progress"]');
+  const chapterProgressRow=d.querySelector('[data-action="topic"][data-t="chapter"]').closest('.topic-row');assert(!chapterProgressRow.textContent.includes('delen'));assert.match(chapterProgressRow.textContent,/Afgerond/);
+  await click('[data-action="topic"][data-t="chapter"]');assert.equal(d.querySelector('[aria-selected="true"]').textContent,'Samenvatting');
+  await click('[data-action="nav"][data-view="review"]');assert.match(text(),/1 vragen klaar voor herhaling/);await click('[data-action="reviewStart"]');
+  assert.match(text(),/Beschrijf het verband/);await click('[data-action="hint"]');assert.match(d.querySelector('#hint').textContent,/Zoek eerst het verband/);assert(!text().includes('VERBORGEN MODELANTWOORD'));
+  console.log('DOM-controle geslaagd: oude deelroutes, native hoofdstukken, root-bewerking, hints zonder antwoorden, quiz-terugkeer en voortgang.');
   dom.window.close();
 })().catch(error=>{console.error(error);process.exitCode=1;});

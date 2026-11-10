@@ -147,6 +147,32 @@ test('Legacy content becomes the first subtopic without changing question IDs or
   assert.equal(parts.length, 1);
 });
 
+test('Chapter layout keeps one root summary and question collection without legacy migration', () => {
+  const { ensureSubtopics } = require('../app/core.cjs');
+  const pkg = fresh();
+  const topic = pkg.topics[0];
+  topic.layout = 'chapter';
+  topic.questions[0].hint = 'Lees de vraag en benoem eerst de begrippen.';
+  const before = structuredClone(topic);
+  assert(validate(pkg).includes(topic.video));
+  assert.throws(() => ensureSubtopics(topic), /hoofdstuk.*geen deelonderwerpen/);
+  assert.deepEqual(topic, before);
+  assert.equal(topic.subtopics, undefined);
+  topic.subtopics = [];
+  assert(validate(pkg).includes(topic.video));
+  topic.subtopics.push({ id: 'deel', title: 'Onbedoeld deel', questions: [] });
+  assert.throws(() => validate(pkg), /hoofdstuk.*geen deelonderwerpen/);
+});
+
+test('Chapter layout and hints reject invalid values', () => {
+  const pkg = fresh();
+  pkg.topics[0].layout = 'unknown';
+  assert.throws(() => validate(pkg), /onderwerpindeling/);
+  pkg.topics[0].layout = 'chapter';
+  pkg.topics[0].questions[0].hint = { answer: 'Geen tekst' };
+  assert.throws(() => validate(pkg), /Tekst/);
+});
+
 test('Subtopics validate all examples and question media and import their local assets', t => {
   const root = temporaryRoot(t);
   const pkg = fresh();
